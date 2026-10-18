@@ -2,7 +2,7 @@
 
 Персональный AI-агент для знакомств (гибридный: Windows-клиент + локальная обработка + облачные LLM).
 
-> Статус: **Этапы 1–10 выполнены** (предрелиз + vision-слой клиента). Реализация шла поэтапно, см. [`docs/implementation-plan/roadmap.md`](docs/implementation-plan/roadmap.md).
+> Статус: **Этапы 1–11 выполнены** (предрелиз + vision-слой клиента с анализом кадров). Реализация шла поэтапно, см. [`docs/implementation-plan/roadmap.md`](docs/implementation-plan/roadmap.md).
 
 ## Принципы
 

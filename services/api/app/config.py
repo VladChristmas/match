@@ -28,6 +28,17 @@ class Settings(BaseSettings):
 
     rate_limit_per_minute: int = 0
 
+    vision_provider: str = "ollama"
+    vision_fallback_providers: str = ""
+    vision_model: str = "qwen3.5:9b"
+    vision_ollama_base_url: str = "http://localhost:11434"
+    vision_max_tokens: int = 512
+    vision_temperature: float = 0.2
+    vision_prompt: str = (
+        "Опиши кратко, что видно в кадре окна диалога знакомств: последние сообщения "
+        "собеседника и общий тон переписки. Не выдумывай деталей, которых не видно."
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

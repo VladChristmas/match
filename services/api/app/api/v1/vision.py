@@ -4,9 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, RateLimitDep, SessionDep
-from app.models import Conversation, VisionObservation
+from app.api.deps import CurrentUser, RateLimitDep, SessionDep, VisionGatewayDep
+from app.config import get_settings
+from app.llm.limits import count_user_runs, is_limit_reached
+from app.models import Conversation, ModelRun, VisionObservation
 from app.schemas import VisionObservationCreate, VisionObservationRead
+from app.vision.base import VisionRequest
+from app.vision.gateway import VisionUnavailable
 from app.vision.service import FrameError, decode_png_frame, record_observation
 
 router = APIRouter(prefix="/api/v1/vision", tags=["vision"])
@@ -52,6 +56,7 @@ async def create_observation(
     response: Response,
     session: SessionDep,
     user: CurrentUser,
+    gateway: VisionGatewayDep,
     rate_limit: RateLimitDep,
 ) -> VisionObservation:
     conversation = await _user_conversation(session, user, payload.conversation_id)
@@ -62,6 +67,7 @@ async def create_observation(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from None
 
+    settings = get_settings()
     observation = record_observation(
         session,
         user,
@@ -70,6 +76,43 @@ async def create_observation(
         info=info,
         captured_at=payload.captured_at,
     )
+
+    if payload.analyze and gateway.available:
+        used = await count_user_runs(session, user.id)
+        if is_limit_reached(used, settings.llm_user_request_limit):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="LLM request limit reached",
+            )
+        request = VisionRequest(
+            image_base64=payload.frame_base64,
+            instruction=settings.vision_prompt,
+            max_tokens=settings.vision_max_tokens,
+            temperature=settings.vision_temperature,
+        )
+        try:
+            outcome = await gateway.analyze(request)
+        except VisionUnavailable:
+            outcome = None
+        if outcome is not None:
+            observation.summary = outcome.text
+            observation.analysis_pending = False
+            observation.provider = outcome.provider
+            observation.model = outcome.model
+            session.add(
+                ModelRun(
+                    user_id=user.id,
+                    task_type="vision_observation",
+                    provider=outcome.provider,
+                    model=outcome.model,
+                    model_version=outcome.model,
+                    prompt_version="vision-observation-v1",
+                    latency_ms=outcome.latency_ms,
+                    token_usage=outcome.token_usage,
+                    status="ok",
+                )
+            )
+
     await session.commit()
     await session.refresh(observation)
     response.status_code = status.HTTP_201_CREATED

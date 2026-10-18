@@ -223,6 +223,8 @@ export interface VisionObservation {
   content_sha256: string;
   analysis_pending: boolean;
   summary: string | null;
+  provider: string | null;
+  model: string | null;
   captured_at: string | null;
   created_at: string;
 }
@@ -232,4 +234,5 @@ export interface VisionObservationCreate {
   frame_base64: string;
   source_label?: string;
   captured_at?: string | null;
+  analyze?: boolean;
 }

@@ -262,6 +262,8 @@ class VisionObservation(Base):
     content_sha256: Mapped[str] = mapped_column(String(64))
     analysis_pending: Mapped[bool] = mapped_column(Boolean, default=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     captured_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

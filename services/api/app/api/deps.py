@@ -9,10 +9,12 @@ from app.db import get_session
 from app.integrations.registry import IntegrationRegistry, get_registry
 from app.llm.gateway import LLMGateway, get_gateway
 from app.models import User
+from app.vision.gateway import VisionGateway, get_vision_gateway
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 GatewayDep = Annotated[LLMGateway, Depends(get_gateway)]
 RegistryDep = Annotated[IntegrationRegistry, Depends(get_registry)]
+VisionGatewayDep = Annotated[VisionGateway, Depends(get_vision_gateway)]
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:

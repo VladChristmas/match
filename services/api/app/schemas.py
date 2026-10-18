@@ -246,6 +246,7 @@ class VisionObservationCreate(BaseModel):
     frame_base64: str = Field(min_length=1)
     source_label: str = Field(default="window", max_length=255)
     captured_at: datetime | None = None
+    analyze: bool = True
 
 
 class VisionObservationRead(BaseModel):
@@ -261,5 +262,7 @@ class VisionObservationRead(BaseModel):
     content_sha256: str
     analysis_pending: bool
     summary: str | None
+    provider: str | None
+    model: str | None
     captured_at: datetime | None
     created_at: datetime

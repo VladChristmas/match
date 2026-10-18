@@ -17,6 +17,7 @@ export function VisionView() {
   const [loadingWindows, setLoadingWindows] = useState(false);
   const [frame, setFrame] = useState<CapturedFrame | null>(null);
   const [conversationId, setConversationId] = useState("");
+  const [analyze, setAnalyze] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +77,7 @@ export function VisionView() {
         frame_base64: frame.png_base64,
         source_label: settings.visionSourceLabel,
         captured_at: new Date().toISOString(),
+        analyze,
       });
       logJournal("vision", "Наблюдение отправлено на сервер", created.id);
       observations.reload();
@@ -161,6 +163,13 @@ export function VisionView() {
               Снять кадр
             </Button>
             <Button
+              variant={analyze ? "ghost" : "danger"}
+              onClick={() => setAnalyze((value) => !value)}
+              title="Анализ кадра моделью (локально по умолчанию)"
+            >
+              {analyze ? "Анализ: включён" : "Анализ: выключен"}
+            </Button>
+            <Button
               variant="primary"
               onClick={() => void send()}
               disabled={busy || frame === null || !conversationId}
@@ -213,20 +222,23 @@ export function VisionView() {
             <li key={item.id}>
               <div className="row">
                 <Badge tone={item.analysis_pending ? "warn" : "ok"}>
-                  {item.analysis_pending ? "ожидает анализа" : "проанализировано"}
+                  {item.analysis_pending ? "анализ не выполнен" : "проанализировано"}
                 </Badge>
                 <span className="list-title">
                   {item.frame_width}×{item.frame_height}
                 </span>
                 <span className="muted">{item.source_label}</span>
+                {item.provider ? <Badge tone="neutral">{item.provider}</Badge> : null}
               </div>
+              {item.summary ? <p>{item.summary}</p> : null}
               <span className="muted mono">{item.content_sha256.slice(0, 16)}…</span>
             </li>
           ))}
         </ul>
         <Banner kind="info">
-          Анализ кадра мультимодальной моделью ждёт закрытия OQ-8, поэтому наблюдения пока только
-          фиксируются.
+          Анализ выполняет <code>MATCH_VISION_PROVIDER</code> (по умолчанию локальный Ollama);
+          облачный провайдер включается только явной настройкой. Если модель недоступна, наблюдение
+          сохраняется без анализа (OQ-8 — выбор конкретной модели).
         </Banner>
       </Section>
     </>

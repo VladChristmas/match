@@ -2,7 +2,43 @@ import base64
 import struct
 import zlib
 
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from app.config import get_settings
+from app.main import app
+from app.models import ModelRun
+from app.vision.base import VisionRequest, VisionResponse
+from app.vision.gateway import VisionGateway, get_vision_gateway
+
 TOKEN_HEADER = {"X-Match-Token": "vision-user"}
+
+
+class FakeVisionProvider:
+    def __init__(self, text="В окне видно переписку.", error=None) -> None:
+        self.name = "fake"
+        self.model = "fake-1"
+        self._text = text
+        self._error = error
+
+    async def analyze(self, request: VisionRequest) -> VisionResponse:
+        if self._error is not None:
+            raise RuntimeError(self._error)
+        return VisionResponse(
+            text=self._text,
+            provider=self.name,
+            model=self.model,
+            latency_ms=5,
+            token_usage=42,
+        )
+
+
+@pytest.fixture(autouse=True)
+def no_vision_network():
+    app.dependency_overrides[get_vision_gateway] = lambda: VisionGateway([])
+    yield
+    app.dependency_overrides.pop(get_vision_gateway, None)
 
 
 def png_bytes(width: int = 2, height: int = 2) -> bytes:
@@ -112,3 +148,85 @@ async def test_observations_are_isolated_per_user(client):
     )
     assert other.status_code == 200
     assert other.json() == []
+
+
+def _use_gateway(*providers) -> None:
+    app.dependency_overrides[get_vision_gateway] = lambda: VisionGateway(list(providers))
+
+
+async def test_analysis_populates_summary(client, engine):
+    _use_gateway(FakeVisionProvider())
+    conversation_id = await _conversation(client)
+    response = await client.post(
+        "/api/v1/vision/observations",
+        headers=TOKEN_HEADER,
+        json={"conversation_id": conversation_id, "frame_base64": frame_b64()},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["analysis_pending"] is False
+    assert body["summary"] == "В окне видно переписку."
+    assert body["provider"] == "fake"
+    assert body["model"] == "fake-1"
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as session:
+        runs = list(await session.scalars(select(ModelRun)))
+    assert len(runs) == 1
+    assert runs[0].task_type == "vision_observation"
+    assert runs[0].provider == "fake"
+
+
+async def test_analysis_can_be_skipped(client):
+    _use_gateway(FakeVisionProvider())
+    conversation_id = await _conversation(client)
+    response = await client.post(
+        "/api/v1/vision/observations",
+        headers=TOKEN_HEADER,
+        json={
+            "conversation_id": conversation_id,
+            "frame_base64": frame_b64(),
+            "analyze": False,
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["analysis_pending"] is True
+    assert response.json()["summary"] is None
+
+
+async def test_failed_analysis_keeps_observation_pending(client):
+    _use_gateway(FakeVisionProvider(error="model offline"))
+    conversation_id = await _conversation(client)
+    response = await client.post(
+        "/api/v1/vision/observations",
+        headers=TOKEN_HEADER,
+        json={"conversation_id": conversation_id, "frame_base64": frame_b64()},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["analysis_pending"] is True
+    assert body["summary"] is None
+    assert body["provider"] is None
+    assert len(body["content_sha256"]) == 64
+
+
+async def test_analysis_respects_user_limit(client, monkeypatch):
+    _use_gateway(FakeVisionProvider())
+    conversation_id = await _conversation(client)
+    payload = {"conversation_id": conversation_id, "frame_base64": frame_b64()}
+
+    monkeypatch.setenv("MATCH_LLM_USER_REQUEST_LIMIT", "1")
+    get_settings.cache_clear()
+    try:
+        first = await client.post(
+            "/api/v1/vision/observations", headers=TOKEN_HEADER, json=payload
+        )
+        second = await client.post(
+            "/api/v1/vision/observations", headers=TOKEN_HEADER, json=payload
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert first.status_code == 201
+    assert first.json()["analysis_pending"] is False
+    assert second.status_code == 429
