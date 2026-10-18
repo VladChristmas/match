@@ -200,13 +200,74 @@
   в CI и в `scripts/check.ps1`.
 - Всего: 104 pytest + 4 cargo test passed; ruff format/check clean; `pnpm build` ok. ADR-0022; OQ-6 закрыт.
 
+### Этап 17 — сделано (services/api + docs)
+- Закрытие OQ-8: по умолчанию локальная мультимодальная модель `MATCH_VISION_MODEL=qwen3.5:9b`
+  (Ollama; capability `vision` подтверждена `ollama show`), поэтому кадр по умолчанию не покидает
+  машину; облачный `OpenAICompatVisionProvider` остаётся opt-in по ключу.
+- Троттлинг частоты анализа: `MATCH_VISION_MIN_INTERVAL_SECONDS` (по умолчанию `0` = выкл).
+  `app/vision/service.py: is_analysis_throttled`; в `POST /vision/observations` при превышении
+  частоты кадр всё равно записывается (`analysis_pending=true`), вызов модели пропускается.
+- Тест `test_analysis_throttled_by_min_interval`; docstring vision-сервиса актуализирован. ADR-0023; OQ-8 закрыт.
+
+### Этап 18 — сделано (services/api + docs)
+- Закрытие OQ-2: `MATCH_LLM_PRESET` (`groq`/`gemini`/`openrouter`/`cerebras`) подставляет
+  `base_url` и модель OpenAI-совместимого облака — пользователю достаточно задать ключ
+  `MATCH_OPENAI_API_KEY` (`app/llm/presets.py`). Пресет приоритетнее явных `MATCH_OPENAI_*`;
+  без пресета поддержан любой OpenAI-совместимый endpoint.
+- Рекомендуемый порядок `openai,ollama,echo`; без ключа облачный слот пропускается (дефолт
+  остаётся приватным/оффлайновым). Политика лимитов — `MATCH_LLM_USER_REQUEST_LIMIT` +
+  `MATCH_LLM_TIMEOUT_SECONDS`; описана в `docs/release/free-llm-providers.md`.
+- Тесты `tests/test_llm_presets.py` (5 шт.). ADR-0024; OQ-2 закрыт.
+
+### Этап 19 — сделано (scripts + docs)
+- Закрытие OQ-4: основным остаётся dot-source `scripts/dev-env.ps1` (полная регистрация
+  BuildTools в vswhere требует прав администратора и не нужна). `dev-env.ps1` получил
+  автопоиск `vcvars64.bat` (x86/x64 Program Files) вместо одного жёсткого пути.
+- Добавлен диагностический `scripts/msvc-status.ps1`: vswhere, vcvars, toolset (14.43),
+  Windows SDK (10.0.22621), рекомендация; не требует прав администратора.
+- Проверено: `msvc-status.ps1` отрабатывает, `dev-env.ps1` находит cl.exe и rustc работает.
+  Оба скрипта — UTF-8 с BOM. ADR-0025; OQ-4 закрыт; открытых вопросов нет.
+
+### Этап 20 — сделано (apps/desktop + docs)
+- Оффлайн-очередь отправки (завершает OQ-6 в части очереди): таблица `outbox` в SQLite-базе
+  `match.db`, схема БД поднята до версии 2 (`storage.rs`). Колонки: id, at, method, path, body,
+  idempotency_key, label, attempts, last_error. Команды `outbox_add/list/remove/fail/clear`;
+  `storage_info` отдаёт `outbox_entries`.
+- Клиент: `src/lib/outbox.ts` (`enqueueOutbox`, `listOutbox`, `flushOutbox`), `ApiClient.send`;
+  `AppContext` повторяет очередь при событии `online`, по таймеру (30 с) и кнопке; результат
+  журналируется. Импорт/отправка сообщения в MatchesView при сетевой ошибке (`status 0`)
+  ставится в очередь. Раздел «Локальное хранилище» показывает счётчик и кнопку «Синхронизировать».
+- Rust-тесты хранилища (7 шт., +3: outbox roundtrip/remove, fail+attempts, миграция v1→v2).
+  Всего 110 pytest + 7 cargo test; ruff/clippy/fmt clean; `pnpm build` ok. ADR-0026.
+
+### Этап 21 — сделано (services/api + services/agent-runtime + docs)
+- Отложенная доставка: миграция `0012_agent_schedule` добавляет в `agent_actions` колонки
+  `scheduled_at` и `next_attempt_at` (+индекс; up/down проверены на PG 5433).
+- API: `POST /api/v1/agent/actions` принимает `schedule_in_seconds`; в режиме `auto_send` и без
+  паузы действие получает статус `scheduled` (иначе `pending`). Статусы `scheduled`/`failed`.
+- Воркер `app/agent/worker.py`: `deliver_due` (поиск просроченных `scheduled`, доставка,
+  retry с линейным backoff, после `MATCH_AGENT_MAX_ATTEMPTS` → `failed`), `run_forever`.
+  Отдельный процесс `services/agent-runtime/main.py` (+README) использует код и venv `services/api`.
+- Настройки: `MATCH_AGENT_WORKER_INTERVAL_SECONDS`, `MATCH_AGENT_MAX_ATTEMPTS`,
+  `MATCH_AGENT_RETRY_BACKOFF_SECONDS` (в `.env.example`).
+- Тесты `tests/test_agent_worker.py` (4 шт.), всего 114 pytest; ruff clean. Проверено: воркер
+  стартует и подключается к PG. ADR-0027.
+
+### Этап 22 — сделано (services/api + scripts + docs)
+- Сквозной тест `tests/test_e2e_flow.py`: профиль → разговор → импорт → черновик → совместимость
+  → риск → отзыв → отложенное действие (через воркер) → vision → экспорт приватности → удаление;
+  оффлайн, провайдер `echo`, vision-шлюз пустой. Всего 115 pytest.
+- Нагрузочная проверка `scripts/loadtest.py` (асинхронный httpx): `--requests/--concurrency/--method/
+  --path/--token`, печатает rps и перцентили и распределение статусов. Проверено против uvicorn:
+  300 GET /health при 20 параллельных — 300/300, ~126 req/s.
+- ruff clean. ADR-0028. Продуктовый план (этапы 17–22) закрыт.
+
 ### Git (локально)
 - Коммиты: … e4dfada+f66efa6 (stage13), b73e77f+96787a8 (stage14), 94f2056+b5d1dcf (stage15). Запушено до b5d1dcf.
 
 ### Next Action
-1. План этапов 0–16 выполнен. Остались открытые вопросы: OQ-8 (модель vision, `MATCH_VISION_MODEL`),
-   OQ-2 (облачные free LLM и ключи), OQ-4 (полная регистрация MSVC).
-2. Возможные следующие шаги вне плана: оффлайн-очередь отправки на клиенте, реальные интеграции,
-   внешний воркер автономности, нагрузочные проверки перед релизом.
-2. Этап 14: лимитер на БД (multi-instance). Этап 15: кабинет суперадмина (OQ-3). Этап 16: локальное хранилище клиента (OQ-6).
-3. OQ-8: выбрать конкретную мультимодальную модель (`MATCH_VISION_MODEL`). Открытые: OQ-2..OQ-4, OQ-6, OQ-8.
+1. Все открытые вопросы закрыты: OQ-2 (ADR-0024, Этап 18), OQ-4 (ADR-0025, Этап 19),
+   OQ-8 (ADR-0023, Этап 17); ранее OQ-3/OQ-6/OQ-7.
+2. Сделано: Этапы 17–22 (vision OQ-8, free LLM OQ-2, MSVC OQ-4, оффлайн-очередь, воркер
+   автономности, e2e/нагрузка). Продуктовый план закрыт. Из «вне релиза» остаются реальные
+   интеграции с площадками (по дизайну агент не подключается к площадке).

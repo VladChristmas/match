@@ -51,6 +51,9 @@
 > Этап 8: реализованы (ADR-0015). Добавлен `POST /api/v1/agent/actions` (поставить действие в
 > очередь; заголовок `Idempotency-Key`). `auto_send` доставляет сразу, иные режимы/пауза → `pending`
 > (передача человеку: `approve`/`reject`). «Доставка» = исходящее сообщение `source=agent`.
+> Этап 21: `schedule_in_seconds > 0` в `POST /agent/actions` переводит действие в `scheduled`
+> (доставляет внешний воркер `services/agent-runtime`, ADR-0027); при ошибке — retry/backoff,
+> после лимита — `failed`. Ответ содержит `scheduled_at`/`next_attempt_at`.
 
 ## Интеграции
 - `GET /api/v1/integrations`
@@ -88,6 +91,9 @@
 > Провайдер задаётся `MATCH_VISION_PROVIDER` (по умолчанию локальный `ollama`), результат пишется
 > в `summary`/`provider`/`model` + `ModelRun`; при недоступной модели наблюдение сохраняется с
 > `analysis_pending=true` (кадр не хранится, поэтому повторный анализ = повторная отправка кадра).
+> Этап 17: по умолчанию локальная модель `qwen3.5:9b` (ADR-0023); частота вызовов модели
+> ограничивается `MATCH_VISION_MIN_INTERVAL_SECONDS` — при превышении кадр записывается, а
+> анализ (`summary`) пропускается (`analysis_pending=true`).
 
 ## Токены доступа
 - `GET /api/v1/tokens`
