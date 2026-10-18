@@ -197,3 +197,45 @@ class IntegrationRead(BaseModel):
     display_name: str
     status: str
     capabilities: IntegrationCapabilitiesRead
+
+
+class AgentSettingsUpdate(BaseModel):
+    default_autonomy_mode: str | None = Field(default=None, max_length=32)
+    queue_paused: bool | None = None
+
+
+class AgentSettingsRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    default_autonomy_mode: str
+    queue_paused: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentActionCreate(BaseModel):
+    conversation_id: uuid.UUID
+    text: str | None = Field(default=None, min_length=1)
+    generate: bool = True
+
+
+class AgentActionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    conversation_id: uuid.UUID
+    action_type: str
+    text: str | None
+    provider: str | None
+    model: str | None
+    validation_ok: bool | None
+    status: str
+    idempotency_key: str | None
+    error: str | None
+    attempts: int
+    created_at: datetime
+    decided_at: datetime | None
+    sent_at: datetime | None

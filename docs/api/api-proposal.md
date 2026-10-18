@@ -48,6 +48,10 @@
 - `POST /api/v1/agent/actions/{action_id}/approve`
 - `POST /api/v1/agent/actions/{action_id}/reject`
 
+> Этап 8: реализованы (ADR-0015). Добавлен `POST /api/v1/agent/actions` (поставить действие в
+> очередь; заголовок `Idempotency-Key`). `auto_send` доставляет сразу, иные режимы/пауза → `pending`
+> (передача человеку: `approve`/`reject`). «Доставка» = исходящее сообщение `source=agent`.
+
 ## Интеграции
 - `GET /api/v1/integrations`
 - `GET /api/v1/integrations/{platform_id}/capabilities`
