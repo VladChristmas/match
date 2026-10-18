@@ -35,7 +35,15 @@ pnpm tauri dev
 - `MATCH_DATABASE_URL`, `MATCH_LLM_PROVIDER`, `MATCH_LLM_FALLBACK_PROVIDERS`
 - `MATCH_LLM_USER_REQUEST_LIMIT`, `MATCH_RATE_LIMIT_PER_MINUTE`
 
-## 5. Проверки перед выкладкой
+## 5. Воркер автономности (services/agent-runtime)
+Отдельный процесс для доставки отложенных действий (`scheduled`) и повторных попыток (ADR-0027):
+```powershell
+services\api\.venv\Scripts\python.exe services\agent-runtime\main.py
+```
+Настройки: `MATCH_AGENT_WORKER_INTERVAL_SECONDS`, `MATCH_AGENT_MAX_ATTEMPTS`,
+`MATCH_AGENT_RETRY_BACKOFF_SECONDS`. Перед запуском — `alembic upgrade head`.
+
+## 6. Проверки перед выкладкой
 ```powershell
 # backend
 cd services\api; .\.venv\Scripts\python.exe -m ruff check .; .\.venv\Scripts\python.exe -m pytest -q
@@ -43,8 +51,15 @@ cd services\api; .\.venv\Scripts\python.exe -m ruff check .; .\.venv\Scripts\pyt
 cd apps\desktop; pnpm build
 ```
 
-## 6. Эксплуатация
+Нагрузочная проверка (запускать против работающего API, ADR-0028):
+```powershell
+services\api\.venv\Scripts\python.exe scripts\loadtest.py --base-url http://localhost:8000 `
+    --requests 500 --concurrency 20
+```
+
+## 7. Эксплуатация
 - Пауза авто-отправки: `POST /api/v1/agent/pause`; возобновление — `/resume`.
 - Очередь на подтверждение: `GET /api/v1/agent/actions?status=pending`; `approve`/`reject`.
+- Отложенная доставка: `POST /api/v1/agent/actions` с `schedule_in_seconds`; статус `scheduled` обрабатывает воркер.
 - Экспорт/удаление данных пользователя: `/api/v1/privacy/export`, `/deletion-request`.
 - Инциденты и откат: см. `docs/release/rollback-plan.md`.
