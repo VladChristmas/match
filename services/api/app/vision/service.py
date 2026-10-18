@@ -1,9 +1,10 @@
-"""Vision-слой: приём кадров наблюдения (Этап 10).
+"""Vision-слой: приём кадров наблюдения (Этап 10) и троттлинг анализа (Этап 17).
 
 Кадр (PNG) приходит с клиента, где он снят через `Windows.Graphics.Capture` (ADR-0008).
 Сервер **не сохраняет изображение** (приватность, ADR-0007): он вычисляет отпечаток,
 размеры и метаданные и создаёт запись наблюдения. Анализ кадра мультимодальной моделью
-ждёт закрытия OQ-8, поэтому `analysis_pending=True`, а `summary` пока пуст.
+выполняет `app/vision/gateway.py` (ADR-0018); частоту вызовов модели ограничивает
+`MATCH_VISION_MIN_INTERVAL_SECONDS` (ADR-0023).
 """
 
 from __future__ import annotations
@@ -11,9 +12,11 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Conversation, User, VisionObservation
@@ -81,3 +84,26 @@ def record_observation(
     )
     session.add(observation)
     return observation
+
+
+async def is_analysis_throttled(
+    session: AsyncSession, user_id: uuid.UUID, min_interval_seconds: float
+) -> bool:
+    """True, если недавно уже анализировался кадр этого пользователя (троттлинг, ADR-0023).
+
+    Кадр всё равно записывается как наблюдение; пропускается только вызов модели.
+    `min_interval_seconds <= 0` отключает ограничение.
+    """
+    if min_interval_seconds <= 0:
+        return False
+    threshold = datetime.now(UTC) - timedelta(seconds=min_interval_seconds)
+    recent = await session.scalar(
+        select(VisionObservation.id)
+        .where(
+            VisionObservation.user_id == user_id,
+            VisionObservation.analysis_pending.is_(False),
+            VisionObservation.created_at >= threshold,
+        )
+        .limit(1)
+    )
+    return recent is not None

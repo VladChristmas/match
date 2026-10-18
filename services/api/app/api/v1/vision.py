@@ -11,7 +11,12 @@ from app.models import Conversation, ModelRun, VisionObservation
 from app.schemas import VisionObservationCreate, VisionObservationRead
 from app.vision.base import VisionRequest
 from app.vision.gateway import VisionUnavailable
-from app.vision.service import FrameError, decode_png_frame, record_observation
+from app.vision.service import (
+    FrameError,
+    decode_png_frame,
+    is_analysis_throttled,
+    record_observation,
+)
 
 router = APIRouter(prefix="/api/v1/vision", tags=["vision"])
 
@@ -77,7 +82,8 @@ async def create_observation(
         captured_at=payload.captured_at,
     )
 
-    if payload.analyze and gateway.available:
+    throttled = await is_analysis_throttled(session, user.id, settings.vision_min_interval_seconds)
+    if payload.analyze and gateway.available and not throttled:
         used = await count_user_runs(session, user.id)
         if is_limit_reached(used, settings.llm_user_request_limit):
             raise HTTPException(

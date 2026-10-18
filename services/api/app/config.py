@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    llm_preset: str = ""
     llm_timeout_seconds: float = 30.0
     llm_max_tokens: int = 512
     llm_temperature: float = 0.7
@@ -33,6 +34,10 @@ class Settings(BaseSettings):
     auth_allow_legacy_tokens: bool = True
 
     admin_token_refs: str = ""
+
+    agent_max_attempts: int = 5
+    agent_retry_backoff_seconds: float = 30.0
+    agent_worker_interval_seconds: float = 15.0
 
     @property
     def admin_refs(self) -> set[str]:
@@ -45,6 +50,7 @@ class Settings(BaseSettings):
     vision_ollama_base_url: str = "http://localhost:11434"
     vision_max_tokens: int = 512
     vision_temperature: float = 0.2
+    vision_min_interval_seconds: float = 0.0
     vision_prompt: str = (
         "Опиши кратко, что видно в кадре окна диалога знакомств: последние сообщения "
         "собеседника и общий тон переписки. Не выдумывай деталей, которых не видно."

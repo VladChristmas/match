@@ -210,6 +210,30 @@ async def test_failed_analysis_keeps_observation_pending(client):
     assert len(body["content_sha256"]) == 64
 
 
+async def test_analysis_throttled_by_min_interval(client, monkeypatch):
+    _use_gateway(FakeVisionProvider())
+    conversation_id = await _conversation(client)
+    payload = {"conversation_id": conversation_id, "frame_base64": frame_b64()}
+
+    monkeypatch.setenv("MATCH_VISION_MIN_INTERVAL_SECONDS", "60")
+    get_settings.cache_clear()
+    try:
+        first = await client.post("/api/v1/vision/observations", headers=TOKEN_HEADER, json=payload)
+        second = await client.post(
+            "/api/v1/vision/observations", headers=TOKEN_HEADER, json=payload
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert first.status_code == 201
+    assert first.json()["analysis_pending"] is False
+    assert first.json()["summary"] == "В окне видно переписку."
+    assert second.status_code == 201
+    assert second.json()["analysis_pending"] is True
+    assert second.json()["summary"] is None
+    assert len(second.json()["content_sha256"]) == 64
+
+
 async def test_analysis_respects_user_limit(client, monkeypatch):
     _use_gateway(FakeVisionProvider())
     conversation_id = await _conversation(client)
