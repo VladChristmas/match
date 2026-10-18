@@ -1,8 +1,8 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–8 выполнены; миграции 0001–0006)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–9 выполнены — предрелиз; миграции 0001–0006)
 
-### Current Task: MATCH — Фаза B. Backend + desktop-клиент + интеграции + автономность. Следующий шаг — Этап 9 (предрелиз).
+### Current Task: MATCH — Фаза B завершена. Все этапы 0–9 пройдены; открытые OQ и vision-слой — далее.
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
 - **Git**: HEAD = **c0ab3b1** (локально). services/api (Этапы 1–2) ещё не закоммичены.
@@ -107,12 +107,19 @@
 - Клиент: `AutonomyView` подключён к API (состояние, пауза/возобновление, очередь approve/reject).
 - Тесты 73 passed (было 63), ruff clean. Живой PG 5433: 12 таблиц. ADR-0015.
 
+### Этап 9 — сделано (services/api + docs/release)
+- Приватность: `app/api/v1/privacy.py` — `GET /privacy/export` (полный экспорт, `token_ref` редактируется),
+  `POST /privacy/deletion-request` (явное удаление всех данных пользователя, не полагается на FK-каскад).
+- Нагрузка: `app/api/ratelimit.py` (in-process скользящее окно), `MATCH_RATE_LIMIT_PER_MINUTE`
+  (0 = выкл), применено к `/drafts` и `/agent/actions` → `429`.
+- Документы: `docs/release/pre-release-checklist.md`, `rollback-plan.md`, `runbook.md`; ADR-0016.
+- Тесты 79 passed (было 73), ruff clean.
+
 ### Git (локально)
-- Коммиты: ba29ec3 (infra), 55d65ad (stage1), d03f831 (stage2), 0bf7a25 (stage3),
-  7c9fa09 (docs), 3a30e10 (stage4), 8ea3072 (statem), fbb1938 (stage6),
-  60a28a7 (statem), 38c5afc (stage5 desktop), cf4dd22 (statem stage5),
-  36ba32d (stage7), 8aeaaaf (statem stage7), 402dd18 (stage8 api). Запушено до 8aeaaaf.
+- Коммиты: ba29ec3 (infra) … 36ba32d (stage7), 8aeaaaf (statem stage7), 402dd18 (stage8 api),
+  27f0769 (stage8 desktop), ac1a0dc (statem stage8). Запушено до ac1a0dc.
 
 ### Next Action
-1. **Этап 9**: предрелиз (security/privacy/нагрузка/восстановление, план отката).
-2. Открытые: OQ-2..OQ-4, OQ-6, OQ-7. Vision-слой клиента (ADR-0008) ещё не подключён.
+1. Открытые: OQ-2..OQ-4 (free LLM/лимиты, метрики, регистрация MSVC), OQ-6 (SQLite), OQ-7 (токены).
+2. Клиент: подключить vision-слой (Windows.Graphics.Capture, ADR-0008).
+3. Масштабирование: внешний воркер автономности, Redis-лимитер, реальные интеграции (по ADR).
