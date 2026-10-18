@@ -1,8 +1,8 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–7 выполнены; Этап 5 — базовый UI; миграции 0001–0005)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–8 выполнены; миграции 0001–0006)
 
-### Current Task: MATCH — Фаза B. Backend + desktop-клиент + интеграции. Следующий шаг — Этап 8 (автономность).
+### Current Task: MATCH — Фаза B. Backend + desktop-клиент + интеграции + автономность. Следующий шаг — Этап 9 (предрелиз).
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
 - **Git**: HEAD = **c0ab3b1** (локально). services/api (Этапы 1–2) ещё не закоммичены.
@@ -98,11 +98,21 @@
 - Contract-тесты `tests/test_integrations.py` (тип-контракт через runtime_checkable Protocol).
 - Тесты 63 passed (было 47), ruff clean. ADR-0014; обновлены api-proposal и adapters/README.
 
+### Этап 8 — сделано (services/api + apps/desktop)
+- Модели `AgentSettings`, `AgentAction`; миграция `0006_agent_autonomy` (up/down проверены на PG 5433).
+- `app/agent/service.py`: очередь (`pending`/`sent`/`rejected`), идемпотентность по `Idempotency-Key`,
+  автодоставка в `auto_send`, передача человеку (`approve`/`reject`), общая пауза.
+- API `app/api/v1/agent.py`: `GET|PATCH /agent/settings`, `POST /agent/pause|resume`,
+  `GET|POST /agent/actions`, `POST /agent/actions/{id}/approve|reject`.
+- Клиент: `AutonomyView` подключён к API (состояние, пауза/возобновление, очередь approve/reject).
+- Тесты 73 passed (было 63), ruff clean. Живой PG 5433: 12 таблиц. ADR-0015.
+
 ### Git (локально)
 - Коммиты: ba29ec3 (infra), 55d65ad (stage1), d03f831 (stage2), 0bf7a25 (stage3),
   7c9fa09 (docs), 3a30e10 (stage4), 8ea3072 (statem), fbb1938 (stage6),
-  60a28a7 (statem), 38c5afc (stage5 desktop), cf4dd22 (statem stage5). Запушено до cf4dd22.
+  60a28a7 (statem), 38c5afc (stage5 desktop), cf4dd22 (statem stage5),
+  36ba32d (stage7), 8aeaaaf (statem stage7), 402dd18 (stage8 api). Запушено до 8aeaaaf.
 
 ### Next Action
-1. **Этап 8**: автономность (очередь, идемпотентность, pause/resume).
-2. **Этап 9**: предрелиз. Открытые: OQ-2..OQ-4, OQ-6, OQ-7.
+1. **Этап 9**: предрелиз (security/privacy/нагрузка/восстановление, план отката).
+2. Открытые: OQ-2..OQ-4, OQ-6, OQ-7. Vision-слой клиента (ADR-0008) ещё не подключён.
