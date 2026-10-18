@@ -1,8 +1,8 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этап 3 выполнен — Dialogue Engine + промежуточный LLM-слой)
+## Last Updated: 2026-10-18 (MATCH: Этап 4 выполнен — Trust/Compatibility; миграция 0004)
 
-### Current Task: MATCH — Фаза B. Этап 3 завершён; следующий шаг — Этап 4 (Trust и Compatibility).
+### Current Task: MATCH — Фаза B. Этап 4 завершён; далее Этап 5 (Tauri-клиент) или Этап 6 (LLM Gateway).
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
 - **Git**: HEAD = **c0ab3b1** (локально). services/api (Этапы 1–2) ещё не закоммичены.
@@ -65,9 +65,20 @@
   генерация черновиков (`/drafts` только возвращает черновик, не отправляет).
 - Тесты 27 passed, ruff clean. Живой smoke на PG 5433: conversation→import→draft (echo) — ok.
 
+### Этап 4 — сделано
+- Модели `CompatibilityAssessment`, `RiskAssessment`; миграция `0004_assessments` (up/downgrade ok).
+- Движки: `app/trust/engine.py` (сигналы риска, severity, рекомендованное действие),
+  `app/compatibility/engine.py` (Jaccard целей/ценностей, lifestyle, взаимность, uncertainty).
+- API `app/api/v1/analysis.py`: `POST|GET /api/v1/analysis/compatibility`, `POST|GET /api/v1/analysis/risk`.
+- Тесты 38 passed, ruff clean. Живой smoke PG 5433: 9 таблиц.
+
+### Git (локально)
+- Коммиты: ba29ec3 (infra), 55d65ad (stage1), d03f831 (stage2), 0bf7a25 (stage3),
+  7c9fa09 (docs), 3a30e10 (stage4). origin не пушился.
+- Каждый этап — отдельный коммит с тестами (roadmap).
+
 ### Next Action
-1. **Этап 4**: Trust и Compatibility — раздельные оценки риска/взаимности/совместимости.
+1. **Этап 5**: Windows-клиент (Tauri + React + TS) — знакомства, профиль, автономность, журнал;
+   зависит от MSVC (`scripts/dev-env.ps1`, OQ-4).
 2. **Этап 6**: полноценный LLM Gateway (облачные free LLM, маршрутизация, fallback, лимиты; OQ-2).
-3. Открытые вопросы: OQ-2 (провайдеры; промежуточно ADR-0011), OQ-3 (метрики суперадмина),
-   OQ-4 (регистрация VS BuildTools), OQ-6 (локальный SQLite), OQ-7 (токены; промежуточно ADR-0010).
-4. Коммиты не делать (запрос владельца); изменения Этапов 1–3 лежат в рабочем дереве.
+3. Открытые: OQ-2..OQ-4, OQ-6, OQ-7 (частично сняты ADR-0010/0011).
