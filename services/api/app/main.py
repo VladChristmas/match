@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.v1.admin import router as admin_router
 from app.api.v1.agent import router as agent_router
 from app.api.v1.analysis import router as analysis_router
 from app.api.v1.conversations import router as conversations_router
@@ -31,6 +32,7 @@ app.include_router(agent_router)
 app.include_router(privacy_router)
 app.include_router(vision_router)
 app.include_router(tokens_router)
+app.include_router(admin_router)
 
 
 @app.get("/")

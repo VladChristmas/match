@@ -4,6 +4,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.admin.service import maybe_promote_admin
 from app.api.ratelimit import enforce_rate_limit, user_key
 from app.auth.service import is_known_token, resolve_access_token
 from app.config import get_settings
@@ -41,35 +42,41 @@ async def get_current_user(
         )
 
     user = await resolve_access_token(session, token)
-    if user is not None:
-        if user.status != "active":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User is not active",
-            )
-        return user
-
-    if not get_settings().auth_allow_legacy_tokens or await is_known_token(session, token):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid access token",
-        )
-
-    user = await session.scalar(select(User).where(User.token_ref == token))
     if user is None:
-        user = User(token_ref=token)
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-    elif user.status != "active":
+        if not get_settings().auth_allow_legacy_tokens or await is_known_token(session, token):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid access token",
+            )
+
+        user = await session.scalar(select(User).where(User.token_ref == token))
+        if user is None:
+            user = User(token_ref=token)
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+
+    if user.status != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is not active",
         )
-    return user
+    return await maybe_promote_admin(session, user)
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_admin_user(user: CurrentUser) -> User:
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
+
+
+AdminUser = Annotated[User, Depends(get_admin_user)]
 
 
 async def rate_limit_dependency(user: CurrentUser, session: SessionDep) -> None:

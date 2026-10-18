@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { AppProvider, useApp } from "./context/AppContext";
+import { AdminView } from "./views/AdminView";
 import { AnalysisView } from "./views/AnalysisView";
 import { AutonomyView } from "./views/AutonomyView";
 import { JournalView } from "./views/JournalView";
@@ -10,7 +11,15 @@ import { SettingsView } from "./views/SettingsView";
 import { VisionView } from "./views/VisionView";
 import "./styles.css";
 
-type Tab = "profile" | "matches" | "analysis" | "autonomy" | "vision" | "journal" | "settings";
+type Tab =
+  | "profile"
+  | "matches"
+  | "analysis"
+  | "autonomy"
+  | "vision"
+  | "journal"
+  | "admin"
+  | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile", label: "Профиль" },
@@ -19,6 +28,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "autonomy", label: "Автономность" },
   { id: "vision", label: "Зрение" },
   { id: "journal", label: "Журнал" },
+  { id: "admin", label: "Админ" },
   { id: "settings", label: "Настройки" },
 ];
 
@@ -69,6 +79,7 @@ function Shell() {
           {tab === "autonomy" ? <AutonomyView /> : null}
           {tab === "vision" ? <VisionView /> : null}
           {tab === "journal" ? <JournalView /> : null}
+          {tab === "admin" ? <AdminView /> : null}
           {tab === "settings" ? <SettingsView /> : null}
         </div>
       </main>

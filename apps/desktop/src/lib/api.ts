@@ -1,6 +1,7 @@
 import type {
   AccessTokenIssued,
   AccessTokenRead,
+  AdminMetrics,
   AgentAction,
   AgentActionCreate,
   AgentSettings,
@@ -273,6 +274,10 @@ export class ApiClient {
 
   revokeToken(id: string): Promise<void> {
     return this.request<void>(`/api/v1/tokens/${id}`, { method: "DELETE" });
+  }
+
+  adminMetrics(): Promise<AdminMetrics> {
+    return this.request<AdminMetrics>("/api/v1/admin/metrics");
   }
 }
 

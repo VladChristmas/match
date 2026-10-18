@@ -32,6 +32,13 @@ class Settings(BaseSettings):
 
     auth_allow_legacy_tokens: bool = True
 
+    admin_token_refs: str = ""
+
+    @property
+    def admin_refs(self) -> set[str]:
+        """`token_ref`, получающие роль `admin` (админ-кабинет, OQ-3)."""
+        return {item.strip() for item in self.admin_token_refs.split(",") if item.strip()}
+
     vision_provider: str = "ollama"
     vision_fallback_providers: str = ""
     vision_model: str = "qwen3.5:9b"

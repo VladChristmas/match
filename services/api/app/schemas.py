@@ -287,3 +287,22 @@ class AccessTokenRead(BaseModel):
     created_at: datetime
     last_used_at: datetime | None
     revoked_at: datetime | None
+
+
+class AdminMetric(BaseModel):
+    total: int
+    by_key: dict[str, int] = {}
+
+
+class AdminMetrics(BaseModel):
+    generated_at: datetime
+    users: AdminMetric
+    conversations: AdminMetric
+    messages: AdminMetric
+    model_runs: AdminMetric
+    model_runs_by_provider: AdminMetric
+    vision_observations: AdminMetric
+    agent_actions: AdminMetric
+    feedback: AdminMetric
+    access_tokens: AdminMetric
+    settings: dict[str, str]

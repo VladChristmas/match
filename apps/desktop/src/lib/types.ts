@@ -237,6 +237,25 @@ export interface VisionObservationCreate {
   analyze?: boolean;
 }
 
+export interface AdminMetric {
+  total: number;
+  by_key: Record<string, number>;
+}
+
+export interface AdminMetrics {
+  generated_at: string;
+  users: AdminMetric;
+  conversations: AdminMetric;
+  messages: AdminMetric;
+  model_runs: AdminMetric;
+  model_runs_by_provider: AdminMetric;
+  vision_observations: AdminMetric;
+  agent_actions: AdminMetric;
+  feedback: AdminMetric;
+  access_tokens: AdminMetric;
+  settings: Record<string, string>;
+}
+
 export interface AccessTokenRead {
   id: UUID;
   label: string;
