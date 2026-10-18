@@ -1,14 +1,21 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Загружает окружение MSVC (vcvars64) в текущую PowerShell-сессию.
 # Нужно для сборки Rust/Tauri, т.к. VS BuildTools 2022 не зарегистрирован в vswhere.
 #
 # Использование:
 #   . .\scripts\dev-env.ps1      # dot-source, чтобы переменные попали в текущую сессию
 
-$vcvars = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+$vcvarsCandidates = @(
+    "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat",
+    "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+)
+$vcvarsCandidates += Get-ChildItem -Path "C:\Program Files*\Microsoft Visual Studio\*\*\VC\Auxiliary\Build\vcvars64.bat" -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty FullName
 
-if (-not (Test-Path -LiteralPath $vcvars)) {
-    Write-Error "vcvars64.bat не найден: $vcvars. Установите VS BuildTools с workload VCTools."
+$vcvars = $vcvarsCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+
+if (-not $vcvars) {
+    Write-Error "vcvars64.bat не найден. Установите VS BuildTools с workload VCTools (см. .\scripts\msvc-status.ps1)."
     return
 }
 
