@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -129,4 +130,44 @@ class Message(Base):
     )
     processed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+
+class CompatibilityAssessment(Base):
+    __tablename__ = "compatibility_assessments"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    match_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    goals_alignment: Mapped[float] = mapped_column(Float)
+    values_alignment: Mapped[float] = mapped_column(Float)
+    lifestyle_alignment: Mapped[float] = mapped_column(Float)
+    reciprocity: Mapped[float] = mapped_column(Float)
+    uncertainty: Mapped[float] = mapped_column(Float)
+    explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_version: Mapped[str] = mapped_column(String(64), default="heuristic-1.0")
+    assessed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class RiskAssessment(Base):
+    __tablename__ = "risk_assessments"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    match_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    risk_category: Mapped[str] = mapped_column(String(64))
+    signals: Mapped[list] = mapped_column(JSON, default=list)
+    confidence: Mapped[float] = mapped_column(Float)
+    explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recommended_action: Mapped[str] = mapped_column(String(64))
+    assessed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )

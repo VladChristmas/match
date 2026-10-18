@@ -35,6 +35,10 @@
 - `POST /api/v1/analysis/compatibility`
 - `POST /api/v1/analysis/risk`
 
+> Этап 4: `compatibility` и `risk` реализованы (детерминированные эвристики, `model_version=heuristic-1.0`),
+> плюс списки `GET /api/v1/analysis/compatibility` и `GET /api/v1/analysis/risk`.
+> Оценки раздельные и объяснимые; психопрофиль (`psychology`) — отдельный модуль, пока не реализован.
+
 ## Автономность
 - `GET|PATCH /api/v1/agent/settings`
 - `POST /api/v1/agent/pause`

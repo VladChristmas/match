@@ -123,3 +123,59 @@ class DraftRead(BaseModel):
     latency_ms: int
     validation_ok: bool
     issues: list[str]
+
+
+class CounterpartInput(BaseModel):
+    goals: list[str] = Field(default_factory=list)
+    values: list[str] = Field(default_factory=list)
+    lifestyle: dict[str, Any] = Field(default_factory=dict)
+
+
+class CompatibilityRequest(BaseModel):
+    match_id: uuid.UUID | None = None
+    conversation_id: uuid.UUID | None = None
+    counterpart: CounterpartInput = Field(default_factory=CounterpartInput)
+    reciprocity: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class CompatibilityRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    match_id: uuid.UUID | None
+    conversation_id: uuid.UUID | None
+    goals_alignment: float
+    values_alignment: float
+    lifestyle_alignment: float
+    reciprocity: float
+    uncertainty: float
+    explanation: str | None
+    model_version: str
+    assessed_at: datetime
+
+
+class RiskRequest(BaseModel):
+    match_id: uuid.UUID | None = None
+    conversation_id: uuid.UUID | None = None
+    messages: list[str] = Field(default_factory=list)
+
+
+class RiskSignalRead(BaseModel):
+    category: str
+    matches: int
+
+
+class RiskRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    match_id: uuid.UUID | None
+    conversation_id: uuid.UUID | None
+    risk_category: str
+    signals: list[RiskSignalRead]
+    confidence: float
+    explanation: str | None
+    recommended_action: str
+    assessed_at: datetime

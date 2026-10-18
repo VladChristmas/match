@@ -35,9 +35,11 @@
 
 ### compatibility_assessments
 `id`, `user_id`, `match_id`, `goals_alignment`, `values_alignment`, `lifestyle_alignment`, `reciprocity`, `uncertainty`, `explanation`, `assessed_at`, `model_version`.
+Реализована на Этапе 4 с добавлением `conversation_id` (nullable, для трассировки источника).
 
 ### risk_assessments
 `id`, `match_id`, `conversation_id`, `risk_category`, `signals`, `confidence`, `explanation`, `recommended_action`, `assessed_at`.
+Реализована на Этапе 4 с добавлением `user_id` (FK на `users`, изоляция по пользователю).
 
 ### agent_permissions
 `id`, `user_id`, `scope`, `action_type`, `allowed`, `limits`, `valid_from`, `valid_until`, `updated_at`.
