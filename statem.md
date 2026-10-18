@@ -1,11 +1,11 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–9 выполнены — предрелиз; миграции 0001–0006)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–10 выполнены; миграции 0001–0007)
 
-### Current Task: MATCH — Фаза B завершена. Все этапы 0–9 пройдены; открытые OQ и vision-слой — далее.
+### Current Task: MATCH — Этапы 0–10 пройдены (предрелиз + vision-слой клиента). Дальше — закрытие OQ.
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
-- **Git**: HEAD = **c0ab3b1** (локально). services/api (Этапы 1–2) ещё не закоммичены.
+- **Git**: HEAD = **a3097ca** (запушено). Этапы 1–9 закоммичены.
 - **GitHub**: https://github.com/VladChristmas/match (публичный).
 - **CI**: каркас .github/workflows/ci.yml (проверка структуры, зелёный).
 
@@ -115,11 +115,22 @@
 - Документы: `docs/release/pre-release-checklist.md`, `rollback-plan.md`, `runbook.md`; ADR-0016.
 - Тесты 79 passed (было 73), ruff clean.
 
+### Этап 10 — сделано (services/api + apps/desktop + docs)
+- Сервер: модель `VisionObservation`; миграция `0007_vision_observations` (up/down проверены на PG 5433).
+  `app/vision/service.py` — проверка PNG (магия, размеры, лимит 8 МБ, SHA-256), изображение НЕ хранится.
+  API `app/api/v1/vision.py`: `GET|POST /api/v1/vision/observations` (rate-limited, проверка владельца).
+  Приватность: наблюдения включены в `/privacy/export` и `/privacy/deletion-request`.
+- Клиент (Rust): `src-tauri/src/vision.rs` — `Windows.Graphics.Capture` (крейт `windows` 0.62):
+  `list_capture_windows`, `capture_window_frame` (D3D11 staging → BGRA→RGBA, box-downscale до 1280 px → PNG base64).
+- Клиент (UI): `VisionView` (вкладка «Зрение») — список окон, снятие кадра, предпросмотр, отправка, история.
+- Тесты 85 passed (было 79), ruff clean; `cargo clippy -D warnings` и `cargo fmt --check` чисто; `pnpm build` ok.
+- Документы: ADR-0017; api-proposal (раздел «Зрение»); OQ-8 (мультимодальная модель); README/roadmap обновлены.
+
 ### Git (локально)
-- Коммиты: ba29ec3 (infra) … 36ba32d (stage7), 8aeaaaf (statem stage7), 402dd18 (stage8 api),
-  27f0769 (stage8 desktop), ac1a0dc (statem stage8). Запушено до ac1a0dc.
+- Коммиты: ba29ec3 (infra) … 36ba32d (stage7), 8aeaaaf (statem7), 402dd18 (stage8 api),
+  27f0769 (stage8 desktop), ac1a0dc (statem8), 215adea (stage9), a3097ca (statem9). Запушено до a3097ca.
 
 ### Next Action
-1. Открытые: OQ-2..OQ-4 (free LLM/лимиты, метрики, регистрация MSVC), OQ-6 (SQLite), OQ-7 (токены).
-2. Клиент: подключить vision-слой (Windows.Graphics.Capture, ADR-0008).
+1. OQ-8: выбор мультимодальной модели для анализа кадров (Этап 10, `analysis_pending`).
+2. Открытые: OQ-2..OQ-4 (free LLM/лимиты, метрики, регистрация MSVC), OQ-6 (SQLite), OQ-7 (токены).
 3. Масштабирование: внешний воркер автономности, Redis-лимитер, реальные интеграции (по ADR).
