@@ -1,8 +1,8 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этап 4 выполнен — Trust/Compatibility; миграция 0004)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–4 и 6 выполнены; Этап 5 Tauri-клиент отложен; миграции 0001–0005)
 
-### Current Task: MATCH — Фаза B. Этап 4 завершён; далее Этап 5 (Tauri-клиент) или Этап 6 (LLM Gateway).
+### Current Task: MATCH — Фаза B. Backend-ready. Следующий шаг — Этап 5 (Tauri-клиент) или Этап 7 (интеграции).
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
 - **Git**: HEAD = **c0ab3b1** (локально). services/api (Этапы 1–2) ещё не закоммичены.
@@ -72,13 +72,18 @@
 - API `app/api/v1/analysis.py`: `POST|GET /api/v1/analysis/compatibility`, `POST|GET /api/v1/analysis/risk`.
 - Тесты 38 passed, ruff clean. Живой smoke PG 5433: 9 таблиц.
 
+### Этап 6 — сделано (LLM Gateway)
+- `OpenAICompatProvider` (облачный OpenAI-совместимый API) + `OllamaProvider` + `EchoProvider`.
+- `LLMGateway`: порядок провайдеров, fallback, `LLMUnavailable` → 503; `ModelRun` + миграция `0005_model_runs`;
+  per-user лимит запросов → 429. Тесты 47 passed.
+
 ### Git (локально)
 - Коммиты: ba29ec3 (infra), 55d65ad (stage1), d03f831 (stage2), 0bf7a25 (stage3),
-  7c9fa09 (docs), 3a30e10 (stage4). origin не пушился.
-- Каждый этап — отдельный коммит с тестами (roadmap).
+  7c9fa09 (docs), 3a30e10 (stage4), 8ea3072 (statem), fbb1938 (stage6). origin не пушился.
 
 ### Next Action
 1. **Этап 5**: Windows-клиент (Tauri + React + TS) — знакомства, профиль, автономность, журнал;
-   зависит от MSVC (`scripts/dev-env.ps1`, OQ-4).
-2. **Этап 6**: полноценный LLM Gateway (облачные free LLM, маршрутизация, fallback, лимиты; OQ-2).
-3. Открытые: OQ-2..OQ-4, OQ-6, OQ-7 (частично сняты ADR-0010/0011).
+   нужен рабочий MSVC (`scripts/dev-env.ps1`, OQ-4).
+2. **Этап 7**: интеграции (contract-тесты, manual-import, `unsupported`).
+3. **Этап 8**: автономность (очередь, идемпотентность, pause/resume).
+4. **Этап 9**: предрелиз. Открытые: OQ-2..OQ-4, OQ-6, OQ-7.
