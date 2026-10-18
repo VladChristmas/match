@@ -2,7 +2,7 @@
 
 Персональный AI-агент для знакомств (гибридный: Windows-клиент + локальная обработка + облачные LLM).
 
-> Статус: **стадия 0 — инициализация**. Реализация идёт поэтапно, см. [`docs/implementation-plan/roadmap.md`](docs/implementation-plan/roadmap.md).
+> Статус: **Этапы 1–6 выполнены, идёт Этап 5 (Windows-клиент)**. Реализация идёт поэтапно, см. [`docs/implementation-plan/roadmap.md`](docs/implementation-plan/roadmap.md).
 
 ## Принципы
 
@@ -38,6 +38,26 @@
 
 ```powershell
 .\scripts\dev-env.ps1   # импортирует vcvars64 в текущую сессию
+```
+
+Клиент (`apps/desktop`, Tauri + React + TS):
+
+```powershell
+. .\scripts\dev-env.ps1
+cd apps\desktop
+pnpm install
+pnpm tauri dev
+```
+
+Сервер (`services/api`, FastAPI):
+
+```powershell
+docker compose -f infra/docker-compose.yml up -d db   # PostgreSQL на порту 5433
+cd services\api
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
 ## Лицензия

@@ -35,3 +35,43 @@ jobs:
         run: ruff check .
       - name: Tests
         run: pytest -q
+
+  desktop-web:
+    name: desktop (web build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Type-check and build
+        run: pnpm build
+
+  desktop-rust:
+    name: desktop (tauri shell)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+      - name: Build frontend (needed by tauri context)
+        run: pnpm build
+      - name: Check Rust/Tauri shell
+        run: cargo check --manifest-path src-tauri/Cargo.toml
