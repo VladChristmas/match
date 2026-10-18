@@ -5,6 +5,7 @@ from app.llm.base import LLMProvider, LLMRequest, LLMResponse
 from app.llm.echo import EchoProvider
 from app.llm.ollama import OllamaProvider
 from app.llm.openai_compat import OpenAICompatProvider
+from app.llm.presets import resolve_preset
 
 
 class LLMUnavailable(RuntimeError):
@@ -33,10 +34,16 @@ def _build_provider(name: str, settings: Settings) -> LLMProvider | None:
     if name == "openai":
         if not settings.openai_api_key:
             return None
+        base_url = settings.openai_base_url
+        model = settings.openai_model
+        preset = resolve_preset(settings.llm_preset)
+        if preset is not None:
+            base_url = preset.base_url
+            model = preset.model
         return OpenAICompatProvider(
-            settings.openai_base_url,
+            base_url,
             settings.openai_api_key,
-            settings.openai_model,
+            model,
             settings.llm_timeout_seconds,
         )
     return None
