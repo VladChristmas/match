@@ -16,6 +16,12 @@ import {
   type JournalEntry,
   type Settings,
 } from "../lib/settings";
+import {
+  appendJournal,
+  clearStoredJournal,
+  JOURNAL_LIMIT,
+  storageSupported,
+} from "../lib/storage";
 
 interface AppContextValue {
   ready: boolean;
@@ -66,9 +72,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logJournal = useCallback((kind: string, summary: string, detail?: string) => {
+    const entry = newEntry(kind, summary, detail);
     setSettings((prev) => {
-      const next = { ...prev, journal: [newEntry(kind, summary, detail), ...prev.journal].slice(0, 500) };
-      void saveSettings(next).catch(() => undefined);
+      const next = { ...prev, journal: [entry, ...prev.journal].slice(0, JOURNAL_LIMIT) };
+      if (storageSupported()) {
+        void appendJournal(entry).catch(() => undefined);
+      } else {
+        void saveSettings(next).catch(() => undefined);
+      }
       return next;
     });
   }, []);
@@ -76,7 +87,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const clearJournal = useCallback(() => {
     setSettings((prev) => {
       const next = { ...prev, journal: [] };
-      void saveSettings(next).catch(() => undefined);
+      if (storageSupported()) {
+        void clearStoredJournal().catch(() => undefined);
+      } else {
+        void saveSettings(next).catch(() => undefined);
+      }
       return next;
     });
   }, []);

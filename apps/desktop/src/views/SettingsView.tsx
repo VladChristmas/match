@@ -5,6 +5,7 @@ import { useApp } from "../context/AppContext";
 import { ApiClient, errorMessage } from "../lib/api";
 import { useAsyncData } from "../lib/hooks";
 import { loadAppInfo, type AppInfo } from "../lib/settings";
+import { loadStorageInfo, storageSupported, type StorageInfo } from "../lib/storage";
 import type { AccessTokenIssued } from "../lib/types";
 
 type Status = { kind: "success" | "error" | "info"; text: string } | null;
@@ -163,11 +164,13 @@ export function SettingsView() {
   const [baseUrl, setBaseUrl] = useState(settings.apiBaseUrl);
   const [token, setToken] = useState(settings.token);
   const [info, setInfo] = useState<AppInfo | null>(null);
+  const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [status, setStatus] = useState<Status>(null);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     void loadAppInfo().then(setInfo);
+    void loadStorageInfo().then(setStorage);
   }, []);
 
   function save() {
@@ -228,6 +231,35 @@ export function SettingsView() {
       </Section>
 
       <TokensSection />
+
+      <Section
+        title="Локальное хранилище"
+        description="Настройки и журнал хранятся на устройстве в SQLite (ADR-0022). На сервер они не отправляются."
+      >
+        {storageSupported() && storage ? (
+          <dl className="kv">
+            <dt>Файл</dt>
+            <dd>
+              <code>{storage.path}</code>
+            </dd>
+            <dt>SQLite</dt>
+            <dd>{storage.sqlite_version}</dd>
+            <dt>Версия схемы</dt>
+            <dd>{storage.schema_version}</dd>
+            <dt>Записей журнала</dt>
+            <dd>{storage.journal_entries}</dd>
+            <dt>Размер</dt>
+            <dd>{Math.max(1, Math.round(storage.size_bytes / 1024))} КБ</dd>
+            <dt>Настройки</dt>
+            <dd>{storage.settings_present ? "сохранены" : "по умолчанию"}</dd>
+          </dl>
+        ) : (
+          <Banner kind="info">
+            Приложение запущено в браузере (режим разработки) — используется localStorage вместо
+            SQLite. Локальная БД работает в desktop-сборке Tauri.
+          </Banner>
+        )}
+      </Section>
 
       <Section title="О приложении">
         {info ? (

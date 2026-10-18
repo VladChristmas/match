@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type AutonomyMode = "auto_send" | "suggest" | "manual" | "paused";
+import { loadState, saveState } from "./storage";
 
+export type AutonomyMode = "auto_send" | "suggest" | "manual" | "paused";
 export interface JournalEntry {
   id: string;
   at: string;
@@ -62,11 +63,15 @@ export function isTauri(): boolean {
 }
 
 export async function loadSettings(): Promise<Settings> {
+  const snapshot = await loadState();
+  if (snapshot) {
+    return {
+      ...DEFAULT_SETTINGS,
+      ...(snapshot.settings as Partial<Settings>),
+      journal: snapshot.journal as JournalEntry[],
+    };
+  }
   try {
-    if (isTauri()) {
-      const raw = await invoke<Partial<Settings> | null>("load_settings");
-      return { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
-    }
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
@@ -77,7 +82,7 @@ export async function loadSettings(): Promise<Settings> {
 
 export async function saveSettings(settings: Settings): Promise<void> {
   if (isTauri()) {
-    await invoke("save_settings", { settings });
+    await saveState(settings);
     return;
   }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));

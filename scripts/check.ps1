@@ -47,6 +47,7 @@ Invoke-Step "desktop: cargo fmt --check" $desktop { & cargo fmt --manifest-path 
 Invoke-Step "desktop: cargo clippy -D warnings" $desktop {
     & cargo clippy --manifest-path $manifest --all-targets -- -D warnings
 }
+Invoke-Step "desktop: cargo test" $desktop { & cargo test --manifest-path $manifest }
 
 if ($failed.Count -gt 0) {
     Write-Host ""
