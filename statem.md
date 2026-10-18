@@ -1,11 +1,11 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–11 выполнены; миграции 0001–0008)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–12 выполнены; миграции 0001–0009)
 
-### Current Task: MATCH — Этапы 0–11 пройдены (предрелиз + vision-слой с анализом кадров). Дальше — закрытие OQ и масштабирование.
+### Current Task: MATCH — Этапы 0–12 пройдены (предрелиз + vision-слой + токены доступа). Дальше — масштабирование и OQ.
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
-- **Git**: HEAD = **a3097ca** (запушено). Этапы 1–9 закоммичены.
+- **Git**: HEAD = **d7be68b** (этап 11, запушено). Этап 12 — локальный коммит.
 - **GitHub**: https://github.com/VladChristmas/match (публичный).
 - **CI**: каркас .github/workflows/ci.yml (проверка структуры, зелёный).
 
@@ -137,10 +137,25 @@
 - Клиент: вкладка «Зрение» — тумблер анализа, показ summary/провайдера в истории.
 - Тесты 89 passed (было 85), ruff clean; `pnpm build` ok. ADR-0018.
 
+### Этап 12 — сделано (services/api + apps/desktop + docs)
+- Токены доступа (закрытие OQ-7): `app/auth/service.py` — генерация (`match_` + `secrets.token_urlsafe(32)`),
+  хранение только SHA-256, `resolve_access_token`/`is_known_token`/`create_token`/`list_tokens`/
+  `revoke_token`/`rotate_token`.
+- Модель `AccessToken` + миграция `0009_access_tokens` (up/down на PG 5433).
+- API `app/api/v1/tokens.py`: `GET /api/v1/tokens`, `POST /api/v1/tokens`, `POST /{id}/rotate`, `DELETE /{id}`
+  (только владелец; отозванный → 409 при ротации, 404 для чужого).
+- Авторизация: `get_current_user` сначала проверяет выданные токены, затем легаси `token_ref`
+  (ADR-0010), который отключается `MATCH_AUTH_ALLOW_LEGACY_TOKENS=false`; отозванные/известные токены
+  в легаси-путь не попадают.
+- Приватность: метаданные токенов в экспорте (без хэша), удаляются при удалении аккаунта.
+- Клиент: раздел «Токены доступа» в настройках — выдача (с показом токена один раз), список,
+  ротация, отзыв, «Использовать этот токен».
+- Тесты `tests/test_tokens.py` (7 шт.), всего 96 passed; ruff clean; `pnpm build` ok. ADR-0019.
+
 ### Git (локально)
-- Коммиты: … a3097ca (statem9), 92e7946 (stage10), 6c6d986 (statem10). Запушено до 6c6d986.
+- Коммиты: … 92e7946 (stage10), 6c6d986 (statem10), d7be68b (stage11). Запушено до d7be68b.
 
 ### Next Action
-1. OQ-8: выбрать конкретную мультимодальную модель (`MATCH_VISION_MODEL`) — интерфейс готов.
-2. Открытые: OQ-2..OQ-4 (free LLM/лимиты, метрики, регистрация MSVC), OQ-6 (SQLite), OQ-7 (токены).
-3. Масштабирование: внешний воркер автономности, Redis-лимитер, реальные интеграции (по ADR).
+1. Этап 13: гигиена CI (clippy/fmt/ruff-format в workflow + локальный скрипт проверок).
+2. Этап 14: лимитер на БД (multi-instance). Этап 15: кабинет суперадмина (OQ-3). Этап 16: локальное хранилище клиента (OQ-6).
+3. OQ-8: выбрать конкретную мультимодальную модель (`MATCH_VISION_MODEL`). Открытые: OQ-2..OQ-4, OQ-6, OQ-8.
