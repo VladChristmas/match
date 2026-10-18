@@ -14,6 +14,9 @@ export interface Settings {
   apiBaseUrl: string;
   token: string;
   autonomyMode: AutonomyMode;
+  visionEnabled: boolean;
+  visionSourceLabel: string;
+  visionTargetHandle: number | null;
   journal: JournalEntry[];
 }
 
@@ -21,6 +24,9 @@ export const DEFAULT_SETTINGS: Settings = {
   apiBaseUrl: "http://127.0.0.1:8000",
   token: "",
   autonomyMode: "auto_send",
+  visionEnabled: false,
+  visionSourceLabel: "window",
+  visionTargetHandle: null,
   journal: [],
 };
 

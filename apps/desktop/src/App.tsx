@@ -7,15 +7,17 @@ import { JournalView } from "./views/JournalView";
 import { MatchesView } from "./views/MatchesView";
 import { ProfileView } from "./views/ProfileView";
 import { SettingsView } from "./views/SettingsView";
+import { VisionView } from "./views/VisionView";
 import "./styles.css";
 
-type Tab = "profile" | "matches" | "analysis" | "autonomy" | "journal" | "settings";
+type Tab = "profile" | "matches" | "analysis" | "autonomy" | "vision" | "journal" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile", label: "Профиль" },
   { id: "matches", label: "Знакомства" },
   { id: "analysis", label: "Анализ" },
   { id: "autonomy", label: "Автономность" },
+  { id: "vision", label: "Зрение" },
   { id: "journal", label: "Журнал" },
   { id: "settings", label: "Настройки" },
 ];
@@ -65,6 +67,7 @@ function Shell() {
           {tab === "matches" ? <MatchesView /> : null}
           {tab === "analysis" ? <AnalysisView /> : null}
           {tab === "autonomy" ? <AutonomyView /> : null}
+          {tab === "vision" ? <VisionView /> : null}
           {tab === "journal" ? <JournalView /> : null}
           {tab === "settings" ? <SettingsView /> : null}
         </div>

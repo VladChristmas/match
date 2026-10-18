@@ -5,6 +5,8 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
+mod vision;
+
 fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -49,6 +51,18 @@ fn app_info(app: AppHandle) -> AppInfo {
     }
 }
 
+/// Перечисляет видимые окна, доступные для наблюдения (Windows.Graphics.Capture).
+#[tauri::command]
+fn list_capture_windows() -> Result<Vec<vision::CaptureTarget>, String> {
+    vision::list_windows()
+}
+
+/// Снимает кадр выбранного окна и возвращает PNG в base64. Изображение не сохраняется на диск.
+#[tauri::command]
+fn capture_window_frame(handle: u64) -> Result<vision::CapturedFrame, String> {
+    vision::capture_window(handle)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -56,7 +70,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_settings,
             save_settings,
-            app_info
+            app_info,
+            list_capture_windows,
+            capture_window_frame
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

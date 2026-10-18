@@ -200,3 +200,36 @@ export interface AgentActionCreate {
   text?: string | null;
   generate?: boolean;
 }
+
+export interface CaptureTarget {
+  handle: number;
+  title: string;
+}
+
+export interface CapturedFrame {
+  width: number;
+  height: number;
+  png_base64: string;
+}
+
+export interface VisionObservation {
+  id: UUID;
+  user_id: UUID;
+  conversation_id: UUID;
+  source_label: string;
+  frame_width: number;
+  frame_height: number;
+  frame_bytes: number;
+  content_sha256: string;
+  analysis_pending: boolean;
+  summary: string | null;
+  captured_at: string | null;
+  created_at: string;
+}
+
+export interface VisionObservationCreate {
+  conversation_id: UUID;
+  frame_base64: string;
+  source_label?: string;
+  captured_at?: string | null;
+}

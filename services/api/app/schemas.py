@@ -239,3 +239,27 @@ class AgentActionRead(BaseModel):
     created_at: datetime
     decided_at: datetime | None
     sent_at: datetime | None
+
+
+class VisionObservationCreate(BaseModel):
+    conversation_id: uuid.UUID
+    frame_base64: str = Field(min_length=1)
+    source_label: str = Field(default="window", max_length=255)
+    captured_at: datetime | None = None
+
+
+class VisionObservationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    conversation_id: uuid.UUID
+    source_label: str
+    frame_width: int
+    frame_height: int
+    frame_bytes: int
+    content_sha256: str
+    analysis_pending: bool
+    summary: str | None
+    captured_at: datetime | None
+    created_at: datetime

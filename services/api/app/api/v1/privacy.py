@@ -16,6 +16,7 @@ from app.models import (
     User,
     UserFeedback,
     UserProfile,
+    VisionObservation,
 )
 
 router = APIRouter(prefix="/api/v1/privacy", tags=["privacy"])
@@ -74,6 +75,7 @@ async def export_data(session: SessionDep, user: CurrentUser) -> dict:
         "agent_settings": _dump(agent_settings),
         "agent_actions": await many(AgentAction),
         "model_runs": await many(ModelRun),
+        "vision_observations": await many(VisionObservation),
     }
 
 
@@ -91,6 +93,7 @@ async def deletion_request(session: SessionDep, user: CurrentUser) -> Response:
         CompatibilityAssessment,
         RiskAssessment,
         ModelRun,
+        VisionObservation,
         Conversation,
     ):
         await session.execute(delete(model).where(model.user_id == user.id))

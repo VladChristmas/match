@@ -19,6 +19,8 @@ import type {
   RiskRequest,
   UserProfile,
   UserProfileUpdate,
+  VisionObservation,
+  VisionObservationCreate,
 } from "./types";
 
 export class ApiError extends Error {
@@ -232,6 +234,21 @@ export class ApiClient {
   rejectAction(id: string): Promise<AgentAction> {
     return this.request<AgentAction>(`/api/v1/agent/actions/${id}/reject`, {
       method: "POST",
+    });
+  }
+
+  listVisionObservations(conversationId?: string, limit = 25): Promise<VisionObservation[]> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (conversationId) query.set("conversation_id", conversationId);
+    return this.request<VisionObservation[]>(
+      `/api/v1/vision/observations?${query.toString()}`,
+    );
+  }
+
+  createVisionObservation(payload: VisionObservationCreate): Promise<VisionObservation> {
+    return this.request<VisionObservation>("/api/v1/vision/observations", {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   }
 }
