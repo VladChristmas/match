@@ -162,3 +162,41 @@ export interface HealthResponse {
   status: string;
   [key: string]: unknown;
 }
+
+export interface AgentSettings {
+  id: UUID;
+  user_id: UUID;
+  default_autonomy_mode: string;
+  queue_paused: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentSettingsUpdate {
+  default_autonomy_mode?: string;
+  queue_paused?: boolean;
+}
+
+export interface AgentAction {
+  id: UUID;
+  user_id: UUID;
+  conversation_id: UUID;
+  action_type: string;
+  text: string | null;
+  provider: string | null;
+  model: string | null;
+  validation_ok: boolean | null;
+  status: string;
+  idempotency_key: string | null;
+  error: string | null;
+  attempts: number;
+  created_at: string;
+  decided_at: string | null;
+  sent_at: string | null;
+}
+
+export interface AgentActionCreate {
+  conversation_id: UUID;
+  text?: string | null;
+  generate?: boolean;
+}

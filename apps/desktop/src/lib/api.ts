@@ -1,4 +1,8 @@
 import type {
+  AgentAction,
+  AgentActionCreate,
+  AgentSettings,
+  AgentSettingsUpdate,
   CommunicationProfile,
   CommunicationProfileUpdate,
   CompatibilityAssessment,
@@ -182,6 +186,53 @@ export class ApiClient {
 
   listRisk(limit = 50): Promise<RiskAssessment[]> {
     return this.request<RiskAssessment[]>(`/api/v1/analysis/risk?limit=${limit}`);
+  }
+
+  getAgentSettings(): Promise<AgentSettings> {
+    return this.request<AgentSettings>("/api/v1/agent/settings");
+  }
+
+  updateAgentSettings(payload: AgentSettingsUpdate): Promise<AgentSettings> {
+    return this.request<AgentSettings>("/api/v1/agent/settings", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  pauseAgent(): Promise<AgentSettings> {
+    return this.request<AgentSettings>("/api/v1/agent/pause", { method: "POST" });
+  }
+
+  resumeAgent(): Promise<AgentSettings> {
+    return this.request<AgentSettings>("/api/v1/agent/resume", { method: "POST" });
+  }
+
+  listActions(status?: string, limit = 50): Promise<AgentAction[]> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (status) query.set("status", status);
+    return this.request<AgentAction[]>(`/api/v1/agent/actions?${query.toString()}`);
+  }
+
+  createAction(payload: AgentActionCreate, idempotencyKey?: string): Promise<AgentAction> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    return this.request<AgentAction>("/api/v1/agent/actions", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+  }
+
+  approveAction(id: string): Promise<AgentAction> {
+    return this.request<AgentAction>(`/api/v1/agent/actions/${id}/approve`, {
+      method: "POST",
+    });
+  }
+
+  rejectAction(id: string): Promise<AgentAction> {
+    return this.request<AgentAction>(`/api/v1/agent/actions/${id}/reject`, {
+      method: "POST",
+    });
   }
 }
 
