@@ -131,6 +131,7 @@ async def create_action(
             text=payload.text,
             generate=payload.generate,
             idempotency_key=idempotency_key,
+            delay_seconds=payload.schedule_in_seconds or 0,
         )
     except LLMUnavailable:
         raise HTTPException(

@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,8 +18,10 @@ from app.models import AgentAction, AgentSettings, Conversation, Message, User
 
 AUTO_SEND = "auto_send"
 PENDING = "pending"
+SCHEDULED = "scheduled"
 SENT = "sent"
 REJECTED = "rejected"
+FAILED = "failed"
 
 
 async def get_or_create_settings(session: AsyncSession, user: User) -> AgentSettings:
@@ -62,6 +64,7 @@ async def enqueue_action(
     text: str | None,
     generate: bool,
     idempotency_key: str | None,
+    delay_seconds: int = 0,
 ) -> tuple[AgentAction, bool]:
     if idempotency_key:
         existing = await session.scalar(
@@ -91,7 +94,12 @@ async def enqueue_action(
         action.validation_ok = outcome.ok
 
     if should_auto_send(settings, conversation):
-        await _deliver(session, conversation, action)
+        if delay_seconds > 0:
+            action.status = SCHEDULED
+            action.scheduled_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
+            action.next_attempt_at = action.scheduled_at
+        else:
+            await _deliver(session, conversation, action)
     else:
         action.status = PENDING
 

@@ -219,6 +219,7 @@ class AgentActionCreate(BaseModel):
     conversation_id: uuid.UUID
     text: str | None = Field(default=None, min_length=1)
     generate: bool = True
+    schedule_in_seconds: int | None = Field(default=None, ge=0, le=7 * 24 * 3600)
 
 
 class AgentActionRead(BaseModel):
@@ -239,6 +240,8 @@ class AgentActionRead(BaseModel):
     created_at: datetime
     decided_at: datetime | None
     sent_at: datetime | None
+    scheduled_at: datetime | None
+    next_attempt_at: datetime | None
 
 
 class VisionObservationCreate(BaseModel):
