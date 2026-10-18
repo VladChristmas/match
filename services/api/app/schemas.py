@@ -179,3 +179,21 @@ class RiskRead(BaseModel):
     explanation: str | None
     recommended_action: str
     assessed_at: datetime
+
+
+class IntegrationCapabilitiesRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    supported: bool
+    manual_import: bool
+    screen_observation: bool
+    direct_messaging: bool
+    auto_send: bool
+    requires_authorization: bool
+
+
+class IntegrationRead(BaseModel):
+    platform_id: str
+    display_name: str
+    status: str
+    capabilities: IntegrationCapabilitiesRead

@@ -54,6 +54,12 @@
 - `GET /api/v1/integrations/{platform_id}/status`
 - `POST /api/v1/integrations/{platform_id}/disconnect`
 
+> Этап 7: реализованы. Разрешена только интеграция `manual_import` (ручной импорт, см.
+> `POST /api/v1/conversations/{id}/messages/import`). Известные площадки (Tinder, Badoo, Bumble,
+> OkCupid, Hinge, Мамба) возвращают статус `unsupported` и нулевые возможности — имитация
+> подключения не допускается. `disconnect` для неподдержанной площадки → `409`.
+> Контракт адаптера и contract-тесты — `app/integrations/`, `tests/test_integrations.py` (ADR-0014).
+
 ## Приватность
 - `GET /api/v1/privacy/export`
 - `POST /api/v1/privacy/deletion-request`

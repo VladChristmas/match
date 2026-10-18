@@ -63,3 +63,8 @@
 
 - **Альтернативы:** жёстко один провайдер; внешний роутер.
 - **Причина:** OQ-2 не закрыт, нужна свобода выбора провайдеров. Реализовано: интерфейс `LLMProvider` с реализациями `EchoProvider` (оффлайн), `OllamaProvider` (локальный), `OpenAICompatProvider` (любой OpenAI-совместимый облачный API). Порядок — `MATCH_LLM_PROVIDER` + `MATCH_LLM_FALLBACK_PROVIDERS`; при ошибке/пустом ответе — переход к следующему; если все недоступны — `LLMUnavailable` (HTTP 503). Учёт запусков в `model_runs`; per-user лимит `MATCH_LLM_USER_REQUEST_LIMIT` (0 = без лимита, HTTP 429). Конкретные облачные провайдеры и политика лимитов — по OQ-2.
+
+## ADR-0014. Интеграции: ручной импорт + явный `unsupported` (Этап 7)
+
+- **Альтернативы:** прямые коннекторы к площадкам; имитация подключения для «красивого» UI.
+- **Причина:** агент не подключается к площадкам напрямую (ADR-0004/ADR-0008) — он наблюдает экран. Поэтому единственная разрешённая интеграция — ручной импорт сообщений; всё остальное честно помечается `unsupported` вместо имитации (roadmap, Этап 7). Введён контракт `IntegrationAdapter` (`app/integrations/base.py`: `platform_id`, `display_name`, `capabilities`, `status()`, `disconnect()`), реестр площадок (`registry.py`) и адаптеры `ManualImportAdapter` (поддержан) и `UnsupportedAdapter` (Tinder, Badoo, Bumble, OkCupid, Hinge, Мамба). API: `GET /api/v1/integrations`, `GET /{platform_id}/capabilities`, `GET /{platform_id}/status`, `POST /{platform_id}/disconnect` (для `unsupported` — `409`). Contract-тесты (`tests/test_integrations.py`) проверяют, что каждый адаптер удовлетворяет контракту. `disconnect` для ручного импорта — осознанный no-op (реального подключения нет). Прямые подключения к площадкам возможны только при повторной юридической проверке и отдельном ADR.

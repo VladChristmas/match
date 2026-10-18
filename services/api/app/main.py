@@ -4,6 +4,7 @@ from app.api.v1.analysis import router as analysis_router
 from app.api.v1.conversations import router as conversations_router
 from app.api.v1.feedback import router as feedback_router
 from app.api.v1.health import router as health_router
+from app.api.v1.integrations import router as integrations_router
 from app.api.v1.profile import router as profile_router
 from app.config import get_settings
 
@@ -21,6 +22,7 @@ app.include_router(profile_router)
 app.include_router(feedback_router)
 app.include_router(conversations_router)
 app.include_router(analysis_router)
+app.include_router(integrations_router)
 
 
 @app.get("/")
