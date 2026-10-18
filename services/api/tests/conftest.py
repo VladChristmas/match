@@ -1,14 +1,20 @@
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from app.db import get_session
 from app.main import app
+from app.models import Base
 
 
 @pytest_asyncio.fixture
 async def engine():
-    eng = create_async_engine("sqlite+aiosqlite:///:memory:")
+    eng = create_async_engine(
+        "sqlite+aiosqlite:///:memory:", poolclass=StaticPool
+    )
+    async with eng.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield eng
     await eng.dispose()
 
