@@ -1,0 +1,41 @@
+# ---- Secrets / env ----
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.uv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+
+# ---- Node / Tauri frontend ----
+node_modules/
+.pnpm-store/
+apps/desktop/dist/
+apps/desktop/src-tauri/target/
+*.log
+
+# ---- Rust ----
+target/
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Local data ----
+local_data/
+*.sqlite
+*.sqlite3
+*.db

@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  placeholder:
+    name: scaffold-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repo layout check
+        run: |
+          test -d docs/architecture
+          test -f README.md
+          echo "Scaffold OK. Real CI jobs are added per roadmap stage."
