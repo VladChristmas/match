@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.7
 
     rate_limit_per_minute: int = 0
+    rate_limit_backend: Literal["memory", "db"] = "memory"
 
     auth_allow_legacy_tokens: bool = True
 

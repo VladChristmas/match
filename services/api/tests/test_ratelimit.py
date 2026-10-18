@@ -4,6 +4,7 @@ from app.api.ratelimit import reset_rate_limit
 from app.config import get_settings
 
 TOKEN_HEADER = {"X-Match-Token": "rate-limited-user"}
+OTHER_HEADER = {"X-Match-Token": "other-rate-limited-user"}
 
 
 @pytest.fixture(autouse=True)
@@ -14,6 +15,20 @@ def rate_limited(monkeypatch):
     yield
     get_settings.cache_clear()
     reset_rate_limit()
+
+
+@pytest.fixture
+def db_backend(monkeypatch):
+    monkeypatch.setenv("MATCH_RATE_LIMIT_BACKEND", "db")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+async def _draft_statuses(client, header, count=3):
+    created = await client.post("/api/v1/conversations", headers=header, json={})
+    url = f"/api/v1/conversations/{created.json()['id']}/drafts"
+    return [(await client.post(url, headers=header)).status_code for _ in range(count)]
 
 
 async def test_draft_rate_limit(client):
@@ -44,3 +59,24 @@ async def test_agent_action_rate_limit(client):
     assert first.status_code == 201
     assert second.status_code == 201
     assert third.status_code == 429
+
+
+async def test_db_backend_limits_per_user(client, db_backend, engine):
+    created = await client.post("/api/v1/conversations", headers=TOKEN_HEADER, json={})
+    url = f"/api/v1/conversations/{created.json()['id']}/drafts"
+
+    hits = [(await client.post(url, headers=TOKEN_HEADER)).status_code for _ in range(3)]
+    assert hits == [200, 200, 429]
+
+    from sqlalchemy import select
+
+    from app.models import RateLimitCounter
+
+    async with engine.connect() as conn:
+        rows = list(await conn.execute(select(RateLimitCounter.count)))
+    assert [row[0] for row in rows] == [2]
+
+
+async def test_db_backend_is_isolated_between_users(client, db_backend):
+    assert await _draft_statuses(client, TOKEN_HEADER) == [200, 200, 429]
+    assert await _draft_statuses(client, OTHER_HEADER) == [200, 200, 429]

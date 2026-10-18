@@ -47,6 +47,19 @@ class AccessToken(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class RateLimitCounter(Base):
+    __tablename__ = "rate_limit_counters"
+
+    __table_args__ = (
+        UniqueConstraint("key", "window_start", name="uq_rate_limit_counters_key_window"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    key: Mapped[str] = mapped_column(String(128), index=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class UserProfile(Base):
     __tablename__ = "user_profiles"
 

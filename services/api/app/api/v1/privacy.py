@@ -13,6 +13,7 @@ from app.models import (
     Conversation,
     Message,
     ModelRun,
+    RateLimitCounter,
     RiskAssessment,
     User,
     UserFeedback,
@@ -111,6 +112,7 @@ async def deletion_request(session: SessionDep, user: CurrentUser) -> Response:
     for model in (UserProfile, CommunicationProfile, AgentSettings):
         await session.execute(delete(model).where(model.user_id == user.id))
     await session.execute(delete(AccessToken).where(AccessToken.user_id == user.id))
+    await session.execute(delete(RateLimitCounter).where(RateLimitCounter.key == str(user.id)))
     await session.execute(delete(User).where(User.id == user.id))
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
