@@ -1,11 +1,11 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–15 выполнены; миграции 0001–0011)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–16 выполнены; миграции 0001–0011)
 
-### Current Task: MATCH — Этапы 0–15 пройдены (предрелиз + vision + токены + CI + лимитер на БД + админ-кабинет). Дальше — локальное хранилище (OQ-6).
+### Current Task: MATCH — Этапы 0–16 пройдены: план реализации выполнен полностью. Дальше — OQ-2/OQ-4/OQ-8 (выбор провайдеров/моделей и MSVC).
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
-- **Git**: HEAD = **96787a8** (этап 14, запушено). Этап 15 — локальный коммит.
+- **Git**: HEAD = **b5d1dcf** (этап 15, запушено). Этап 16 — локальный коммит.
 - **GitHub**: https://github.com/VladChristmas/match (публичный).
 - **CI**: каркас .github/workflows/ci.yml (проверка структуры, зелёный).
 
@@ -185,10 +185,28 @@
 - Клиент: вкладка «Админ» (`AdminView.tsx`) — сводка, таблицы метрик, понятное объяснение 403.
 - Тесты `tests/test_admin.py` (6 шт.), всего 104 passed; ruff format/check clean; `pnpm build` ok. ADR-0021; OQ-3 закрыт.
 
+### Этап 16 — сделано (apps/desktop + CI + docs)
+- Локальное хранилище клиента на SQLite (закрытие OQ-6): `src-tauri/src/storage.rs` — `match.db` в
+  каталоге данных приложения, `rusqlite` (bundled). Таблицы `settings(key,value)` и
+  `journal(id,at,kind,summary,detail)` + индекс по времени; версия схемы в `PRAGMA user_version`.
+- Команды: `load_state`, `save_state` (настройки без блоба журнала), `journal_append` (идемпотентно
+  по id, подрезка до 500), `journal_clear`, `storage_info`. Легаси `settings.json` переносится
+  однократно и переименовывается в `settings.json.migrated`. Старые команды `load_settings`/
+  `save_settings` удалены (их заменил storage).
+- Клиент: `src/lib/storage.ts`, `AppContext` пишет журнал в SQLite, раздел «Локальное хранилище»
+  в настройках (путь, версия SQLite/схемы, записей журнала, размер). В браузере — localStorage.
+- Rust-тесты хранилища (4 шт.): миграция идемпотентна, настройки сохраняются без журнала,
+  журнал сортирован и подрезан до лимита, повторная запись не дублируется. `cargo test` добавлен
+  в CI и в `scripts/check.ps1`.
+- Всего: 104 pytest + 4 cargo test passed; ruff format/check clean; `pnpm build` ok. ADR-0022; OQ-6 закрыт.
+
 ### Git (локально)
-- Коммиты: … abcbeb0+761d62e (stage12), e4dfada+f66efa6 (stage13), b73e77f+96787a8 (stage14). Запушено до 96787a8.
+- Коммиты: … e4dfada+f66efa6 (stage13), b73e77f+96787a8 (stage14), 94f2056+b5d1dcf (stage15). Запушено до b5d1dcf.
 
 ### Next Action
-1. Этап 16: локальное хранилище клиента (SQLite, OQ-6) — кэш/журнал.
+1. План этапов 0–16 выполнен. Остались открытые вопросы: OQ-8 (модель vision, `MATCH_VISION_MODEL`),
+   OQ-2 (облачные free LLM и ключи), OQ-4 (полная регистрация MSVC).
+2. Возможные следующие шаги вне плана: оффлайн-очередь отправки на клиенте, реальные интеграции,
+   внешний воркер автономности, нагрузочные проверки перед релизом.
 2. Этап 14: лимитер на БД (multi-instance). Этап 15: кабинет суперадмина (OQ-3). Этап 16: локальное хранилище клиента (OQ-6).
 3. OQ-8: выбрать конкретную мультимодальную модель (`MATCH_VISION_MODEL`). Открытые: OQ-2..OQ-4, OQ-6, OQ-8.
