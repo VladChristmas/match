@@ -18,6 +18,7 @@ class DraftOutcome:
     latency_ms: int
     ok: bool
     issues: list[str]
+    token_usage: int | None = None
 
 
 async def build_draft(
@@ -46,4 +47,5 @@ async def build_draft(
         latency_ms=response.latency_ms,
         ok=validation.ok,
         issues=validation.issues,
+        token_usage=response.token_usage,
     )

@@ -5,8 +5,11 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, GatewayDep, SessionDep
+from app.config import get_settings
 from app.dialogue.service import build_draft
-from app.models import Conversation, Message, User
+from app.llm.gateway import LLMUnavailable
+from app.llm.limits import count_user_runs, is_limit_reached
+from app.models import Conversation, Message, ModelRun, User
 from app.schemas import (
     ConversationCreate,
     ConversationRead,
@@ -129,7 +132,34 @@ async def create_draft(
     gateway: GatewayDep,
 ) -> DraftRead:
     conversation = await _get_conversation(session, user, conversation_id)
-    outcome = await build_draft(session, gateway, conversation)
+    settings = get_settings()
+    used = await count_user_runs(session, user.id)
+    if is_limit_reached(used, settings.llm_user_request_limit):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="LLM request limit reached",
+        )
+    try:
+        outcome = await build_draft(session, gateway, conversation)
+    except LLMUnavailable:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No LLM provider available",
+        ) from None
+    session.add(
+        ModelRun(
+            user_id=user.id,
+            task_type="dialogue_draft",
+            provider=outcome.provider,
+            model=outcome.model,
+            model_version=outcome.model,
+            prompt_version="dialogue-draft-v1",
+            latency_ms=outcome.latency_ms,
+            token_usage=outcome.token_usage,
+            status="ok",
+        )
+    )
+    await session.commit()
     return DraftRead(
         text=outcome.text,
         provider=outcome.provider,

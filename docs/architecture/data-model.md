@@ -53,7 +53,7 @@
 
 ### model_runs
 `id`, `task_type`, `provider`, `model`, `model_version`, `prompt_version`, `latency_ms`, `token_usage`, `status`, `created_at`.
-Полный текст переписки в технические логи по умолчанию не пишется.
+Полный текст переписки в технические логи по умолчанию не пишется. Реализована на Этапе 6 (LLM Gateway) с добавлением `user_id` (nullable, для учёта и лимитов по пользователю).
 
 ## Требования
 

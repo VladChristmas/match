@@ -39,4 +39,5 @@ class OllamaProvider:
             provider=self.name,
             model=self.model,
             latency_ms=latency_ms,
+            token_usage=data.get("eval_count"),
         )

@@ -23,6 +23,7 @@ class LLMResponse:
     provider: str
     model: str
     latency_ms: int
+    token_usage: int | None = None
 
 
 class LLMProvider(Protocol):
