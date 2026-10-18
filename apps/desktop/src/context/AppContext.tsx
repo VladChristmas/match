@@ -22,6 +22,14 @@ import {
   JOURNAL_LIMIT,
   storageSupported,
 } from "../lib/storage";
+import {
+  enqueueOutbox,
+  flushOutbox,
+  listOutbox,
+  outboxSupported,
+  type FlushResult,
+  type OutboxRequest,
+} from "../lib/outbox";
 
 interface AppContextValue {
   ready: boolean;
@@ -30,7 +38,12 @@ interface AppContextValue {
   update: (patch: Partial<Settings>) => void;
   logJournal: (kind: string, summary: string, detail?: string) => void;
   clearJournal: () => void;
+  outboxCount: number;
+  queueRequest: (request: OutboxRequest) => Promise<string>;
+  syncOutbox: () => Promise<FlushResult>;
 }
+
+const OUTBOX_INTERVAL_MS = 30000;
 
 const AppContext = createContext<AppContextValue | null>(null);
 
@@ -50,6 +63,7 @@ function newEntry(kind: string, summary: string, detail?: string): JournalEntry 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [ready, setReady] = useState(false);
+  const [outboxCount, setOutboxCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -101,9 +115,66 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [settings.apiBaseUrl, settings.token],
   );
 
+  const refreshOutbox = useCallback(async () => {
+    if (!outboxSupported()) return;
+    setOutboxCount((await listOutbox()).length);
+  }, []);
+
+  const syncOutbox = useCallback(async (): Promise<FlushResult> => {
+    if (!outboxSupported()) return { sent: 0, dropped: 0, remaining: 0 };
+    const result = await flushOutbox(api);
+    await refreshOutbox();
+    if (result.sent > 0) {
+      logJournal("outbox", `Оффлайн-очередь синхронизирована: ${result.sent}`);
+    }
+    return result;
+  }, [api, logJournal, refreshOutbox]);
+
+  const queueRequest = useCallback(
+    async (request: OutboxRequest) => {
+      const id = await enqueueOutbox(request);
+      await refreshOutbox();
+      logJournal("outbox", `Запрос в оффлайн-очереди: ${request.label}`, id);
+      return id;
+    },
+    [logJournal, refreshOutbox],
+  );
+
+  useEffect(() => {
+    if (!ready || !outboxSupported()) return;
+    void syncOutbox();
+    const onOnline = () => void syncOutbox();
+    window.addEventListener("online", onOnline);
+    const timer = window.setInterval(() => void syncOutbox(), OUTBOX_INTERVAL_MS);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.clearInterval(timer);
+    };
+  }, [ready, syncOutbox]);
+
   const value = useMemo<AppContextValue>(
-    () => ({ ready, settings, api, update, logJournal, clearJournal }),
-    [ready, settings, api, update, logJournal, clearJournal],
+    () => ({
+      ready,
+      settings,
+      api,
+      update,
+      logJournal,
+      clearJournal,
+      outboxCount,
+      queueRequest,
+      syncOutbox,
+    }),
+    [
+      ready,
+      settings,
+      api,
+      update,
+      logJournal,
+      clearJournal,
+      outboxCount,
+      queueRequest,
+      syncOutbox,
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

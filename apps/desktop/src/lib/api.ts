@@ -92,6 +92,16 @@ export class ApiClient {
     return data as T;
   }
 
+  /** Низкоуровневый запрос: используется оффлайн-очередью при повторном воспроизведении. */
+  send(
+    path: string,
+    init: { method: string; body?: string; idempotencyKey?: string },
+  ): Promise<unknown> {
+    const headers: Record<string, string> = {};
+    if (init.idempotencyKey) headers["Idempotency-Key"] = init.idempotencyKey;
+    return this.request<unknown>(path, { method: init.method, headers, body: init.body });
+  }
+
   health(): Promise<HealthResponse> {
     return this.request<HealthResponse>("/health");
   }

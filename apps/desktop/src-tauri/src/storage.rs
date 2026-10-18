@@ -1,11 +1,13 @@
-//! Локальное хранилище клиента (Этап 16, OQ-6): SQLite рядом с данными приложения.
+//! Локальное хранилище клиента (Этап 16, OQ-6) и оффлайн-очередь (Этап 20).
 //!
-//! Хранит настройки клиента (одна строка JSON без журнала) и журнал событий (таблица с
-//! индексом по времени). Настройки и журнал не покидают устройство; серверу они не нужны
-//! (ADR-0007). Старый `settings.json` переносится в БД один раз и переименовывается.
+//! Хранит настройки клиента (одна строка JSON без журнала), журнал событий (таблица с
+//! индексом по времени) и оффлайн-очередь исходящих запросов (`outbox`). Настройки и
+//! журнал не покидают устройство; серверу они не нужны (ADR-0007). Старый `settings.json`
+//! переносится в БД один раз и переименовывается.
 //!
 //! Схема версионируется через `PRAGMA user_version`, поэтому будущие изменения добавляются
-//! новой ветвью в `migrate` без внешних миграционных инструментов.
+//! новой ветвью в `migrate` без внешних миграционных инструментов. `outbox` появилась в
+//! версии 2 (ADR-0026).
 
 use std::fs;
 use std::path::PathBuf;
@@ -15,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 const JOURNAL_LIMIT: i64 = 500;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -26,6 +28,24 @@ pub struct JournalEntry {
     pub summary: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct OutboxEntry {
+    pub id: String,
+    pub at: String,
+    pub method: String,
+    pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub idempotency_key: Option<String>,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub attempts: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -40,6 +60,7 @@ pub struct StorageInfo {
     pub schema_version: i64,
     pub sqlite_version: String,
     pub journal_entries: i64,
+    pub outbox_entries: i64,
     pub size_bytes: u64,
     pub settings_present: bool,
 }
@@ -81,6 +102,23 @@ fn migrate(conn: &Connection) -> Result<(), String> {
                  detail TEXT
              );
              CREATE INDEX IF NOT EXISTS idx_journal_at ON journal(at DESC);",
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    if version < 2 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS outbox (
+                 id TEXT PRIMARY KEY,
+                 at TEXT NOT NULL,
+                 method TEXT NOT NULL,
+                 path TEXT NOT NULL,
+                 body TEXT,
+                 idempotency_key TEXT,
+                 label TEXT NOT NULL DEFAULT '',
+                 attempts INTEGER NOT NULL DEFAULT 0,
+                 last_error TEXT
+             );
+             CREATE INDEX IF NOT EXISTS idx_outbox_at ON outbox(at);",
         )
         .map_err(|e| e.to_string())?;
     }
@@ -150,6 +188,68 @@ fn load_journal(conn: &Connection) -> Result<Vec<JournalEntry>, String> {
         .map_err(|e| e.to_string())
 }
 
+fn insert_outbox(conn: &Connection, entry: &OutboxEntry) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO outbox
+             (id, at, method, path, body, idempotency_key, label, attempts, last_error)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            entry.id,
+            entry.at,
+            entry.method,
+            entry.path,
+            entry.body,
+            entry.idempotency_key,
+            entry.label,
+            entry.attempts,
+            entry.last_error
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn list_outbox(conn: &Connection) -> Result<Vec<OutboxEntry>, String> {
+    let mut statement = conn
+        .prepare(
+            "SELECT id, at, method, path, body, idempotency_key, label, attempts, last_error
+             FROM outbox ORDER BY at ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(OutboxEntry {
+                id: row.get(0)?,
+                at: row.get(1)?,
+                method: row.get(2)?,
+                path: row.get(3)?,
+                body: row.get(4)?,
+                idempotency_key: row.get(5)?,
+                label: row.get(6)?,
+                attempts: row.get(7)?,
+                last_error: row.get(8)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+fn remove_outbox(conn: &Connection, id: &str) -> Result<(), String> {
+    conn.execute("DELETE FROM outbox WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn fail_outbox(conn: &Connection, id: &str, error: &str) -> Result<(), String> {
+    conn.execute(
+        "UPDATE outbox SET attempts = attempts + 1, last_error = ?2 WHERE id = ?1",
+        params![id, error],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Переносит прежний `settings.json` в БД (однократно) и переименовывает файл.
 fn import_legacy_settings(app: &AppHandle, conn: &Connection) -> Result<(), String> {
     let stored: i64 = conn
@@ -214,6 +314,43 @@ pub fn journal_clear(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Добавляет запрос в оффлайн-очередь (идемпотентно по `id`).
+#[tauri::command]
+pub fn outbox_add(app: AppHandle, entry: OutboxEntry) -> Result<(), String> {
+    let conn = open(&app)?;
+    insert_outbox(&conn, &entry)
+}
+
+/// Возвращает очередь исходящих запросов в порядке добавления.
+#[tauri::command]
+pub fn outbox_list(app: AppHandle) -> Result<Vec<OutboxEntry>, String> {
+    let conn = open(&app)?;
+    list_outbox(&conn)
+}
+
+/// Удаляет запрос из очереди (успешная отправка или необратимая ошибка).
+#[tauri::command]
+pub fn outbox_remove(app: AppHandle, id: String) -> Result<(), String> {
+    let conn = open(&app)?;
+    remove_outbox(&conn, &id)
+}
+
+/// Отмечает неудачную попытку отправки: увеличивает счётчик и пишет последнюю ошибку.
+#[tauri::command]
+pub fn outbox_fail(app: AppHandle, id: String, error: String) -> Result<(), String> {
+    let conn = open(&app)?;
+    fail_outbox(&conn, &id, &error)
+}
+
+/// Полностью очищает оффлайн-очередь.
+#[tauri::command]
+pub fn outbox_clear(app: AppHandle) -> Result<(), String> {
+    let conn = open(&app)?;
+    conn.execute("DELETE FROM outbox", [])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Сведения о локальном хранилище для экрана настроек.
 #[tauri::command]
 pub fn storage_info(app: AppHandle) -> Result<StorageInfo, String> {
@@ -221,6 +358,9 @@ pub fn storage_info(app: AppHandle) -> Result<StorageInfo, String> {
     let conn = open(&app)?;
     let journal_entries: i64 = conn
         .query_row("SELECT COUNT(*) FROM journal", [], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    let outbox_entries: i64 = conn
+        .query_row("SELECT COUNT(*) FROM outbox", [], |row| row.get(0))
         .map_err(|e| e.to_string())?;
     let settings_present: i64 = conn
         .query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0))
@@ -234,6 +374,7 @@ pub fn storage_info(app: AppHandle) -> Result<StorageInfo, String> {
         schema_version,
         sqlite_version: rusqlite::version().to_string(),
         journal_entries,
+        outbox_entries,
         size_bytes,
         settings_present: settings_present > 0,
     })
@@ -297,5 +438,62 @@ mod tests {
         insert_journal(&conn, &first).expect("insert");
         insert_journal(&conn, &first).expect("insert again");
         assert_eq!(load_journal(&conn).expect("load").len(), 1);
+    }
+
+    fn outbox_item(index: usize) -> OutboxEntry {
+        OutboxEntry {
+            id: format!("outbox-{index}"),
+            at: format!("2026-10-18T11:{:02}:00Z", index % 60),
+            method: "POST".to_string(),
+            path: "/api/v1/conversations/x/messages/import".to_string(),
+            body: Some("{\"content\":\"hi\"}".to_string()),
+            idempotency_key: None,
+            label: "import".to_string(),
+            attempts: 0,
+            last_error: None,
+        }
+    }
+
+    #[test]
+    fn outbox_roundtrip_is_ordered_and_removable() {
+        let conn = memory();
+        insert_outbox(&conn, &outbox_item(2)).expect("insert 2");
+        insert_outbox(&conn, &outbox_item(1)).expect("insert 1");
+        let stored = list_outbox(&conn).expect("list");
+        assert_eq!(stored.len(), 2);
+        assert!(stored[0].at <= stored[1].at);
+        remove_outbox(&conn, "outbox-1").expect("remove");
+        assert_eq!(list_outbox(&conn).expect("list").len(), 1);
+    }
+
+    #[test]
+    fn outbox_fail_records_attempts_and_error() {
+        let conn = memory();
+        insert_outbox(&conn, &outbox_item(1)).expect("insert");
+        fail_outbox(&conn, "outbox-1", "network down").expect("fail");
+        fail_outbox(&conn, "outbox-1", "network down").expect("fail again");
+        let stored = list_outbox(&conn).expect("list");
+        assert_eq!(stored[0].attempts, 2);
+        assert_eq!(stored[0].last_error.as_deref(), Some("network down"));
+    }
+
+    #[test]
+    fn migrate_from_v1_adds_outbox() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        conn.execute_batch(
+            "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE journal (
+                 id TEXT PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL,
+                 summary TEXT NOT NULL, detail TEXT
+             );",
+        )
+        .expect("v1 schema");
+        conn.pragma_update(None, "user_version", 1).expect("set v1");
+        migrate(&conn).expect("migrate to v2");
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("version");
+        assert_eq!(version, SCHEMA_VERSION);
+        insert_outbox(&conn, &outbox_item(1)).expect("outbox works after upgrade");
     }
 }

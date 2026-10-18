@@ -12,7 +12,7 @@ import {
   TextArea,
 } from "../components/ui";
 import { useApp } from "../context/AppContext";
-import { errorMessage } from "../lib/api";
+import { ApiError, errorMessage } from "../lib/api";
 import { useAsyncData } from "../lib/hooks";
 import { AUTONOMY_MODES, type AutonomyMode } from "../lib/settings";
 import type { Conversation, Draft } from "../lib/types";
@@ -80,7 +80,7 @@ function CreateConversation({ onCreated }: { onCreated: (conversation: Conversat
 }
 
 function ConversationPanel({ conversationId }: { conversationId: string }) {
-  const { api, logJournal } = useApp();
+  const { api, logJournal, queueRequest } = useApp();
   const messages = useAsyncData(() => api.listMessages(conversationId), [api, conversationId]);
 
   const [direction, setDirection] = useState("inbound");
@@ -105,7 +105,21 @@ function ConversationPanel({ conversationId }: { conversationId: string }) {
       setText("");
       messages.reload();
     } catch (err) {
-      setImportError(errorMessage(err));
+      if (err instanceof ApiError && err.status === 0) {
+        await queueRequest({
+          method: "POST",
+          path: `/api/v1/conversations/${conversationId}/messages/import`,
+          body: JSON.stringify({
+            content: value.trim(),
+            direction: dir === "outbound" ? "outbound" : "inbound",
+          }),
+          label: dir === "outbound" ? "отправка сообщения" : "импорт сообщения",
+        });
+        logJournal("outbox", "Нет связи с API — сообщение сохранено в оффлайн-очереди");
+        setText("");
+      } else {
+        setImportError(errorMessage(err));
+      }
     } finally {
       setImportBusy(false);
     }

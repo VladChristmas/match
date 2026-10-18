@@ -47,7 +47,12 @@ pub fn run() {
             storage::save_state,
             storage::journal_append,
             storage::journal_clear,
-            storage::storage_info
+            storage::storage_info,
+            storage::outbox_add,
+            storage::outbox_list,
+            storage::outbox_remove,
+            storage::outbox_fail,
+            storage::outbox_clear
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

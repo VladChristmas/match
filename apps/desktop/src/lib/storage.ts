@@ -18,6 +18,7 @@ export interface StorageInfo {
   schema_version: number;
   sqlite_version: string;
   journal_entries: number;
+  outbox_entries: number;
   size_bytes: number;
   settings_present: boolean;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Banner, Button, Field, Section, TextInput } from "../components/ui";
+import { Badge, Banner, Button, Field, Section, TextInput } from "../components/ui";
 import { useApp } from "../context/AppContext";
 import { ApiClient, errorMessage } from "../lib/api";
 import { useAsyncData } from "../lib/hooks";
@@ -160,18 +160,36 @@ function TokensSection() {
 }
 
 export function SettingsView() {
-  const { settings, update, logJournal } = useApp();
+  const { settings, update, logJournal, outboxCount, syncOutbox } = useApp();
   const [baseUrl, setBaseUrl] = useState(settings.apiBaseUrl);
   const [token, setToken] = useState(settings.token);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [status, setStatus] = useState<Status>(null);
   const [testing, setTesting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     void loadAppInfo().then(setInfo);
     void loadStorageInfo().then(setStorage);
   }, []);
+
+  async function sync() {
+    setSyncing(true);
+    setStatus({ kind: "info", text: "Синхронизация очереди…" });
+    try {
+      const result = await syncOutbox();
+      setStatus({
+        kind: "success",
+        text: `Очередь: отправлено ${result.sent}, отклонено ${result.dropped}, осталось ${result.remaining}.`,
+      });
+      void loadStorageInfo().then(setStorage);
+    } catch (err) {
+      setStatus({ kind: "error", text: errorMessage(err) });
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   function save() {
     update({ apiBaseUrl: baseUrl.trim(), token: token.trim() });
@@ -259,6 +277,17 @@ export function SettingsView() {
             SQLite. Локальная БД работает в desktop-сборке Tauri.
           </Banner>
         )}
+
+        <p className="muted">
+          Оффлайн-очередь: запросы, не ушедшие при отсутствии связи, сохраняются на устройстве и
+          повторяются автоматически (ADR-0026).
+        </p>
+        <div className="row">
+          <Badge tone={outboxCount > 0 ? "warn" : "ok"}>{outboxCount} в очереди</Badge>
+          <Button onClick={() => void sync()} disabled={syncing || !storageSupported()}>
+            {syncing ? "Синхронизация…" : "Синхронизировать"}
+          </Button>
+        </div>
       </Section>
 
       <Section title="О приложении">
