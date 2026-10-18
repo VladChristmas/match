@@ -23,10 +23,11 @@
 
 ### conversations
 `id`, `match_id`, `status`, `autonomy_mode`, `last_activity_at`, `context_version`, `created_at`, `updated_at`.
+На Этапе 3 реализована с добавлением `user_id` (FK на `users`, для изоляции по пользователю); `match_id` — nullable UUID без FK (таблица `matches` появится позже).
 
 ### messages
 `id`, `conversation_id`, `external_message_id?`, `direction`, `content`/ссылка, `source`, `created_at`, `processed_at`, `processing_status`.
-Текст хранится минимально; возможно удаление после обработки.
+Текст хранится минимально; возможно удаление после обработки. Реализована на Этапе 3.
 
 ### psychological_observations
 `id`, `user_id`/`match_id`, `subject_type`, `category`, `observation`, `evidence_reference`, `confidence`, `status`, `observed_at`, `expires_at`, `created_at`.
@@ -46,6 +47,7 @@
 
 ### user_feedback
 `id`, `user_id`, `conversation_id`, `action_id`, `feedback_type`, `rating`, `correction`, `created_at`.
+На Этапе 2 таблица реализована; `conversation_id`/`action_id` — nullable UUID без FK (таблицы `conversations`/`agent_actions` появятся на этапах 3/8).
 
 ### model_runs
 `id`, `task_type`, `provider`, `model`, `model_version`, `prompt_version`, `latency_ms`, `token_usage`, `status`, `created_at`.

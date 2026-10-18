@@ -2,11 +2,18 @@
 
 Стиль: REST + OpenAPI, версия `/api/v1`. Контракты черновые.
 
+> Авторизация: `Authorization: Bearer <token>` либо `X-Match-Token: <token>`.
+> Реализация Этапа 2 — временная (см. ADR-0010), финализация механизма токенов — OQ-7.
+
 ## Профиль
-- `GET /api/v1/profile`
-- `PATCH /api/v1/profile`
-- `GET /api/v1/profile/communication`
-- `PATCH /api/v1/profile/communication`
+- `GET /api/v1/profile` — профиль пользователя (создаётся по умолчанию при первом запросе)
+- `PATCH /api/v1/profile` — частичное обновление (инкремент `profile_version`)
+- `GET /api/v1/profile/communication` — профиль общения
+- `PATCH /api/v1/profile/communication` — частичное обновление (инкремент `version`)
+
+## Обратная связь
+- `POST /api/v1/feedback` — сохранить отзыв (`feedback_type`, `rating` 1–5, `correction`)
+- `GET /api/v1/feedback` — список отзывов пользователя (пагинация `limit`/`offset`)
 
 ## Знакомства
 - `GET|POST /api/v1/matches`
@@ -19,6 +26,9 @@
 - `POST /api/v1/conversations/{conversation_id}/messages/import`
 - `POST /api/v1/conversations/{conversation_id}/analyze`
 - `POST /api/v1/conversations/{conversation_id}/drafts`
+
+> Этап 3: `/drafts` возвращает черновик и результат валидации, но **не отправляет** сообщение
+> (соблюдение запрета ниже: LLM не выполняет действия напрямую). Автоотправка — Этап 8.
 
 ## Анализ
 - `POST /api/v1/analysis/psychology`
