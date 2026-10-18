@@ -1,4 +1,6 @@
 import type {
+  AccessTokenIssued,
+  AccessTokenRead,
   AgentAction,
   AgentActionCreate,
   AgentSettings,
@@ -250,6 +252,27 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(payload),
     });
+  }
+
+  listTokens(): Promise<AccessTokenRead[]> {
+    return this.request<AccessTokenRead[]>("/api/v1/tokens");
+  }
+
+  issueToken(label: string): Promise<AccessTokenIssued> {
+    return this.request<AccessTokenIssued>("/api/v1/tokens", {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    });
+  }
+
+  rotateToken(id: string): Promise<AccessTokenIssued> {
+    return this.request<AccessTokenIssued>(`/api/v1/tokens/${id}/rotate`, {
+      method: "POST",
+    });
+  }
+
+  revokeToken(id: string): Promise<void> {
+    return this.request<void>(`/api/v1/tokens/${id}`, { method: "DELETE" });
   }
 }
 

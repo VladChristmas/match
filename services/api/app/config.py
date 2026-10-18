@@ -28,6 +28,8 @@ class Settings(BaseSettings):
 
     rate_limit_per_minute: int = 0
 
+    auth_allow_legacy_tokens: bool = True
+
     vision_provider: str = "ollama"
     vision_fallback_providers: str = ""
     vision_model: str = "qwen3.5:9b"

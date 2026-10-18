@@ -266,3 +266,24 @@ class VisionObservationRead(BaseModel):
     model: str | None
     captured_at: datetime | None
     created_at: datetime
+
+
+class AccessTokenCreate(BaseModel):
+    label: str = Field(default="", max_length=128)
+
+
+class AccessTokenIssued(BaseModel):
+    id: uuid.UUID
+    token: str
+    label: str
+    created_at: datetime
+
+
+class AccessTokenRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    label: str
+    created_at: datetime
+    last_used_at: datetime | None
+    revoked_at: datetime | None

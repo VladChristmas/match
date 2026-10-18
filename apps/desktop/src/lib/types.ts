@@ -236,3 +236,18 @@ export interface VisionObservationCreate {
   captured_at?: string | null;
   analyze?: boolean;
 }
+
+export interface AccessTokenRead {
+  id: UUID;
+  label: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface AccessTokenIssued {
+  id: UUID;
+  token: string;
+  label: string;
+  created_at: string;
+}

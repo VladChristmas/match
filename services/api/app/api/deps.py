@@ -5,6 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.ratelimit import enforce_rate_limit
+from app.auth.service import is_known_token, resolve_access_token
+from app.config import get_settings
 from app.db import get_session
 from app.integrations.registry import IntegrationRegistry, get_registry
 from app.llm.gateway import LLMGateway, get_gateway
@@ -37,6 +39,22 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing access token",
         )
+
+    user = await resolve_access_token(session, token)
+    if user is not None:
+        if user.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not active",
+            )
+        return user
+
+    if not get_settings().auth_allow_legacy_tokens or await is_known_token(session, token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token",
+        )
+
     user = await session.scalar(select(User).where(User.token_ref == token))
     if user is None:
         user = User(token_ref=token)

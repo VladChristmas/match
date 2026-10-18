@@ -5,6 +5,7 @@ from sqlalchemy import delete, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.models import (
+    AccessToken,
     AgentAction,
     AgentSettings,
     CommunicationProfile,
@@ -76,6 +77,18 @@ async def export_data(session: SessionDep, user: CurrentUser) -> dict:
         "agent_actions": await many(AgentAction),
         "model_runs": await many(ModelRun),
         "vision_observations": await many(VisionObservation),
+        "access_tokens": [
+            {
+                "id": record.id,
+                "label": record.label,
+                "created_at": record.created_at,
+                "last_used_at": record.last_used_at,
+                "revoked_at": record.revoked_at,
+            }
+            for record in await session.scalars(
+                select(AccessToken).where(AccessToken.user_id == user.id)
+            )
+        ],
     }
 
 
@@ -99,6 +112,7 @@ async def deletion_request(session: SessionDep, user: CurrentUser) -> Response:
         await session.execute(delete(model).where(model.user_id == user.id))
     for model in (UserProfile, CommunicationProfile, AgentSettings):
         await session.execute(delete(model).where(model.user_id == user.id))
+    await session.execute(delete(AccessToken).where(AccessToken.user_id == user.id))
     await session.execute(delete(User).where(User.id == user.id))
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
