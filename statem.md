@@ -1,11 +1,11 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–13 выполнены; миграции 0001–0009)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–14 выполнены; миграции 0001–0010)
 
-### Current Task: MATCH — Этапы 0–13 пройдены (предрелиз + vision-слой + токены + гигиена CI). Дальше — масштабирование и OQ.
+### Current Task: MATCH — Этапы 0–14 пройдены (предрелиз + vision + токены + CI + лимитер на БД). Дальше — админ-метрики и локальное хранилище.
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
-- **Git**: HEAD = **761d62e** (этап 12, запушено). Этап 13 — локальный коммит.
+- **Git**: HEAD = **f66efa6** (этап 13, запушено). Этап 14 — локальный коммит.
 - **GitHub**: https://github.com/VladChristmas/match (публичный).
 - **CI**: каркас .github/workflows/ci.yml (проверка структуры, зелёный).
 
@@ -161,10 +161,23 @@
   файл сохранён в UTF-8 с BOM (PS 5.1 иначе ломает кириллицу). Проверен локально: все шаги зелёные.
 - README: раздел «Проверки перед коммитом», исправлен запуск `dev-env.ps1` (dot-source).
 
+### Этап 14 — сделано (services/api + docs)
+- Лимитер нагрузки получил бэкенды (`MATCH_RATE_LIMIT_BACKEND`): `memory` (по умолчанию, скользящее
+  окно in-process) и `db` — фиксированные окна 60 с в таблице `rate_limit_counters` (работает
+  при нескольких инстансах, без Redis).
+- Модель `RateLimitCounter` + миграция `0010_rate_limit_counters` (up/down на PG 5433; 15 таблиц).
+- `app/api/ratelimit.py`: `_memory_hits/_memory_add`, `_db_hits` (с удалением устаревших окон),
+  `_db_increment` (SAVEPOINT + IntegrityError → UPDATE, без диалект-специфичного ON CONFLICT),
+  `enforce_rate_limit(session, key)`; отклонённые запросы счётчик не увеличивают.
+- `rate_limit_dependency` теперь принимает сессию; удаление аккаунта чистит счётчики
+  (в экспорт приватности служебные счётчики не входят).
+- Тесты `tests/test_ratelimit.py` (+2: лимит и изоляция пользователей на db-бэкенде), всего 98 passed;
+  ruff format/check clean. ADR-0020.
+
 ### Git (локально)
-- Коммиты: … 6c6d986 (statem10), d7be68b (stage11), abcbeb0+761d62e (stage12). Запушено до 761d62e.
+- Коммиты: … d7be68b (stage11), abcbeb0+761d62e (stage12), e4dfada+f66efa6 (stage13). Запушено до f66efa6.
 
 ### Next Action
-1. Этап 14: лимитер на БД (multi-instance, `MATCH_RATE_LIMIT_BACKEND`).
+1. Этап 15: кабинет суперадмина (OQ-3) — роль admin + метрики.
 2. Этап 14: лимитер на БД (multi-instance). Этап 15: кабинет суперадмина (OQ-3). Этап 16: локальное хранилище клиента (OQ-6).
 3. OQ-8: выбрать конкретную мультимодальную модель (`MATCH_VISION_MODEL`). Открытые: OQ-2..OQ-4, OQ-6, OQ-8.
