@@ -74,3 +74,52 @@ class FeedbackRead(BaseModel):
     rating: int | None
     correction: str | None
     created_at: datetime
+
+
+class ConversationCreate(BaseModel):
+    match_id: uuid.UUID | None = None
+    autonomy_mode: str | None = Field(default=None, max_length=32)
+
+
+class ConversationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    match_id: uuid.UUID | None
+    status: str
+    autonomy_mode: str
+    last_activity_at: datetime | None
+    context_version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class MessageImport(BaseModel):
+    content: str = Field(min_length=1)
+    direction: str = Field(default="inbound", pattern="^(inbound|outbound)$")
+    external_message_id: str | None = Field(default=None, max_length=255)
+    source: str = Field(default="manual", max_length=32)
+
+
+class MessageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    external_message_id: str | None
+    direction: str
+    content: str | None
+    source: str
+    processing_status: str
+    created_at: datetime
+    processed_at: datetime | None
+
+
+class DraftRead(BaseModel):
+    text: str
+    provider: str
+    model: str
+    latency_ms: int
+    validation_ok: bool
+    issues: list[str]

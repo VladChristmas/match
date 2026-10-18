@@ -5,9 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.llm.gateway import LLMGateway, get_gateway
 from app.models import User
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+GatewayDep = Annotated[LLMGateway, Depends(get_gateway)]
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:

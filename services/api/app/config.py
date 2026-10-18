@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     database_url: str = "postgresql+asyncpg://match:match@localhost:5432/match"
 
+    llm_provider: str = "echo"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen3.5:9b"
+    llm_timeout_seconds: float = 30.0
+    llm_max_tokens: int = 512
+    llm_temperature: float = 0.7
+
 
 @lru_cache
 def get_settings() -> Settings:
