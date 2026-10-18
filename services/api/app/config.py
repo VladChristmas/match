@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 512
     llm_temperature: float = 0.7
 
+    rate_limit_per_minute: int = 0
+
 
 @lru_cache
 def get_settings() -> Settings:

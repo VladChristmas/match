@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
-from app.api.deps import CurrentUser, GatewayDep, SessionDep
+from app.api.deps import CurrentUser, GatewayDep, RateLimitDep, SessionDep
 from app.config import get_settings
 from app.dialogue.service import build_draft
 from app.llm.gateway import LLMUnavailable
@@ -130,6 +130,7 @@ async def create_draft(
     session: SessionDep,
     user: CurrentUser,
     gateway: GatewayDep,
+    rate_limit: RateLimitDep,
 ) -> DraftRead:
     conversation = await _get_conversation(session, user, conversation_id)
     settings = get_settings()

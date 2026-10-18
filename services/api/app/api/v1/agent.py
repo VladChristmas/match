@@ -11,7 +11,7 @@ from app.agent.service import (
     get_or_create_settings,
     reject_action,
 )
-from app.api.deps import CurrentUser, GatewayDep, SessionDep
+from app.api.deps import CurrentUser, GatewayDep, RateLimitDep, SessionDep
 from app.llm.gateway import LLMUnavailable
 from app.models import AgentAction, Conversation, User
 from app.schemas import AgentActionCreate, AgentActionRead, AgentSettingsRead, AgentSettingsUpdate
@@ -115,6 +115,7 @@ async def create_action(
     session: SessionDep,
     user: CurrentUser,
     gateway: GatewayDep,
+    rate_limit: RateLimitDep,
     idempotency_key: Annotated[str | None, Header()] = None,
 ) -> AgentAction:
     if payload.text is None and not payload.generate:

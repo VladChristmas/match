@@ -4,6 +4,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.ratelimit import enforce_rate_limit
 from app.db import get_session
 from app.integrations.registry import IntegrationRegistry, get_registry
 from app.llm.gateway import LLMGateway, get_gateway
@@ -49,3 +50,10 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def rate_limit_dependency(user: CurrentUser) -> None:
+    enforce_rate_limit(str(user.id))
+
+
+RateLimitDep = Annotated[None, Depends(rate_limit_dependency)]
