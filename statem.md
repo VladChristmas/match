@@ -1,11 +1,11 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–12 выполнены; миграции 0001–0009)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–13 выполнены; миграции 0001–0009)
 
-### Current Task: MATCH — Этапы 0–12 пройдены (предрелиз + vision-слой + токены доступа). Дальше — масштабирование и OQ.
+### Current Task: MATCH — Этапы 0–13 пройдены (предрелиз + vision-слой + токены + гигиена CI). Дальше — масштабирование и OQ.
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
-- **Git**: HEAD = **d7be68b** (этап 11, запушено). Этап 12 — локальный коммит.
+- **Git**: HEAD = **761d62e** (этап 12, запушено). Этап 13 — локальный коммит.
 - **GitHub**: https://github.com/VladChristmas/match (публичный).
 - **CI**: каркас .github/workflows/ci.yml (проверка структуры, зелёный).
 
@@ -152,10 +152,19 @@
   ротация, отзыв, «Использовать этот токен».
 - Тесты `tests/test_tokens.py` (7 шт.), всего 96 passed; ruff clean; `pnpm build` ok. ADR-0019.
 
+### Этап 13 — сделано (CI + scripts + docs)
+- CI (`.github/workflows/ci.yml`): backend — добавлен `ruff format --check`; desktop-rust — вместо `cargo check`
+  теперь `cargo fmt --check` и `cargo clippy --all-targets -- -D warnings`.
+- Ruff-формат приведён к единому виду: `ruff format .` (33 файла переформатировано, 47 без изменений),
+  конфиг общий (`line-length=100`), тесты после переформатирования — 96 passed.
+- Локальный скрипт `scripts/check.ps1` — единый прогон (ruff format/check, pytest, pnpm build, cargo fmt/clippy);
+  файл сохранён в UTF-8 с BOM (PS 5.1 иначе ломает кириллицу). Проверен локально: все шаги зелёные.
+- README: раздел «Проверки перед коммитом», исправлен запуск `dev-env.ps1` (dot-source).
+
 ### Git (локально)
-- Коммиты: … 92e7946 (stage10), 6c6d986 (statem10), d7be68b (stage11). Запушено до d7be68b.
+- Коммиты: … 6c6d986 (statem10), d7be68b (stage11), abcbeb0+761d62e (stage12). Запушено до 761d62e.
 
 ### Next Action
-1. Этап 13: гигиена CI (clippy/fmt/ruff-format в workflow + локальный скрипт проверок).
+1. Этап 14: лимитер на БД (multi-instance, `MATCH_RATE_LIMIT_BACKEND`).
 2. Этап 14: лимитер на БД (multi-instance). Этап 15: кабинет суперадмина (OQ-3). Этап 16: локальное хранилище клиента (OQ-6).
 3. OQ-8: выбрать конкретную мультимодальную модель (`MATCH_VISION_MODEL`). Открытые: OQ-2..OQ-4, OQ-6, OQ-8.
