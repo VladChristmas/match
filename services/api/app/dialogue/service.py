@@ -28,9 +28,7 @@ async def build_draft(
         select(UserProfile).where(UserProfile.user_id == conversation.user_id)
     )
     communication_profile = await session.scalar(
-        select(CommunicationProfile).where(
-            CommunicationProfile.user_id == conversation.user_id
-        )
+        select(CommunicationProfile).where(CommunicationProfile.user_id == conversation.user_id)
     )
     history_result = await session.scalars(
         select(Message)

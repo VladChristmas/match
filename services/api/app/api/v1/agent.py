@@ -36,9 +36,7 @@ async def _user_conversation(
     return conversation
 
 
-async def _user_action(
-    session: SessionDep, user: User, action_id: uuid.UUID
-) -> AgentAction:
+async def _user_action(session: SessionDep, user: User, action_id: uuid.UUID) -> AgentAction:
     action = await session.scalar(
         select(AgentAction).where(
             AgentAction.id == action_id,
@@ -144,9 +142,7 @@ async def create_action(
 
 
 @router.post("/actions/{action_id}/approve", response_model=AgentActionRead)
-async def approve(
-    action_id: uuid.UUID, session: SessionDep, user: CurrentUser
-) -> AgentAction:
+async def approve(action_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> AgentAction:
     action = await _user_action(session, user, action_id)
     if action.status != PENDING:
         raise HTTPException(
@@ -158,9 +154,7 @@ async def approve(
 
 
 @router.post("/actions/{action_id}/reject", response_model=AgentActionRead)
-async def reject(
-    action_id: uuid.UUID, session: SessionDep, user: CurrentUser
-) -> AgentAction:
+async def reject(action_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> AgentAction:
     action = await _user_action(session, user, action_id)
     if action.status != PENDING:
         raise HTTPException(

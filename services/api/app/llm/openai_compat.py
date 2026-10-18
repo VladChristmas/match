@@ -39,9 +39,7 @@ class OpenAICompatProvider:
             timeout=self.timeout,
             transport=self._transport,
         ) as client:
-            response = await client.post(
-                "/chat/completions", json=payload, headers=headers
-            )
+            response = await client.post("/chat/completions", json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
         latency_ms = int((time.perf_counter() - started) * 1000)

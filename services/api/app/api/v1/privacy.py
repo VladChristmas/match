@@ -32,9 +32,7 @@ def _dump(obj) -> dict:
 @router.get("/export")
 async def export_data(session: SessionDep, user: CurrentUser) -> dict:
     """Полный экспорт данных пользователя (персональные данные не собираются сверх созданного)."""
-    profile = await session.scalar(
-        select(UserProfile).where(UserProfile.user_id == user.id)
-    )
+    profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
     communication = await session.scalar(
         select(CommunicationProfile).where(CommunicationProfile.user_id == user.id)
     )

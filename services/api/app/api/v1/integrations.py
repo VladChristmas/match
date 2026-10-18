@@ -45,9 +45,7 @@ async def get_status(platform_id: str, registry: RegistryDep, user: CurrentUser)
 
 
 @router.post("/{platform_id}/disconnect", response_model=IntegrationRead)
-async def disconnect(
-    platform_id: str, registry: RegistryDep, user: CurrentUser
-) -> IntegrationRead:
+async def disconnect(platform_id: str, registry: RegistryDep, user: CurrentUser) -> IntegrationRead:
     adapter = _get(registry, platform_id)
     if not adapter.capabilities.supported:
         raise HTTPException(

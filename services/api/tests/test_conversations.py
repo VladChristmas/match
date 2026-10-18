@@ -25,9 +25,7 @@ async def test_create_and_list_conversations(client):
 
 async def test_conversation_is_isolated_between_users(client):
     created = await _create_conversation(client, TOKEN_HEADER)
-    foreign = await client.get(
-        f"/api/v1/conversations/{created['id']}", headers=OTHER_HEADER
-    )
+    foreign = await client.get(f"/api/v1/conversations/{created['id']}", headers=OTHER_HEADER)
     assert foreign.status_code == 404
 
 

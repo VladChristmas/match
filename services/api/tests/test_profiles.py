@@ -60,7 +60,5 @@ async def test_communication_profile_defaults_and_update(client):
 
 
 async def test_bearer_token_is_accepted(client):
-    response = await client.get(
-        "/api/v1/profile", headers={"Authorization": "Bearer bearer-token"}
-    )
+    response = await client.get("/api/v1/profile", headers={"Authorization": "Bearer bearer-token"})
     assert response.status_code == 200

@@ -14,9 +14,7 @@ router = APIRouter(prefix="/api/v1/profile", tags=["profile"])
 
 
 async def _get_or_create_profile(session: SessionDep, user_id) -> UserProfile:
-    profile = await session.scalar(
-        select(UserProfile).where(UserProfile.user_id == user_id)
-    )
+    profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user_id))
     if profile is None:
         profile = UserProfile(user_id=user_id)
         session.add(profile)

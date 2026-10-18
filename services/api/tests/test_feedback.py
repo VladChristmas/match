@@ -25,9 +25,7 @@ async def test_rating_out_of_range_is_rejected(client):
 
 
 async def test_feedback_requires_token(client):
-    response = await client.post(
-        "/api/v1/feedback", json={"feedback_type": "rating", "rating": 4}
-    )
+    response = await client.post("/api/v1/feedback", json={"feedback_type": "rating", "rating": 4})
     assert response.status_code == 401
 
 

@@ -4,6 +4,7 @@ Revision ID: 0004
 Revises: 0003
 Create Date: 2026-10-18
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -76,9 +77,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_risk_assessments_user_id", "risk_assessments", ["user_id"])
     op.create_index("ix_risk_assessments_match_id", "risk_assessments", ["match_id"])
-    op.create_index(
-        "ix_risk_assessments_conversation_id", "risk_assessments", ["conversation_id"]
-    )
+    op.create_index("ix_risk_assessments_conversation_id", "risk_assessments", ["conversation_id"])
 
 
 def downgrade() -> None:
@@ -91,10 +90,6 @@ def downgrade() -> None:
         "ix_compatibility_assessments_conversation_id",
         table_name="compatibility_assessments",
     )
-    op.drop_index(
-        "ix_compatibility_assessments_match_id", table_name="compatibility_assessments"
-    )
-    op.drop_index(
-        "ix_compatibility_assessments_user_id", table_name="compatibility_assessments"
-    )
+    op.drop_index("ix_compatibility_assessments_match_id", table_name="compatibility_assessments")
+    op.drop_index("ix_compatibility_assessments_user_id", table_name="compatibility_assessments")
     op.drop_table("compatibility_assessments")

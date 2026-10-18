@@ -15,9 +15,7 @@ class FailingProvider:
 
 
 async def _new_conversation(client) -> str:
-    response = await client.post(
-        "/api/v1/conversations", headers=TOKEN_HEADER, json={}
-    )
+    response = await client.post("/api/v1/conversations", headers=TOKEN_HEADER, json={})
     return response.json()["id"]
 
 

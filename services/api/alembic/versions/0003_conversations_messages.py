@@ -4,6 +4,7 @@ Revision ID: 0003
 Revises: 0002
 Create Date: 2026-10-18
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -69,9 +70,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["conversation_id"], ["conversations.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["conversation_id"], ["conversations.id"], ondelete="CASCADE"),
     )
     op.create_index("ix_messages_conversation_id", "messages", ["conversation_id"])
 

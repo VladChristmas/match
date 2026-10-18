@@ -99,7 +99,5 @@ async def test_disconnect_supported_integration(client):
 
 
 async def test_disconnect_unsupported_integration_conflicts(client):
-    response = await client.post(
-        "/api/v1/integrations/tinder/disconnect", headers=TOKEN_HEADER
-    )
+    response = await client.post("/api/v1/integrations/tinder/disconnect", headers=TOKEN_HEADER)
     assert response.status_code == 409

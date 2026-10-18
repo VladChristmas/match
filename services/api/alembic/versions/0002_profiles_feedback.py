@@ -4,6 +4,7 @@ Revision ID: 0002
 Revises: 0001
 Create Date: 2026-10-18
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -40,9 +41,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
     )
-    op.create_index(
-        "ix_user_profiles_user_id", "user_profiles", ["user_id"], unique=True
-    )
+    op.create_index("ix_user_profiles_user_id", "user_profiles", ["user_id"], unique=True)
 
     op.create_table(
         "communication_profiles",

@@ -29,9 +29,7 @@ async def test_openai_compat_parses_response():
 
 
 async def test_openai_compat_raises_on_http_error():
-    transport = httpx.MockTransport(
-        lambda request: httpx.Response(500, json={"error": "x"})
-    )
+    transport = httpx.MockTransport(lambda request: httpx.Response(500, json={"error": "x"}))
     provider = OpenAICompatProvider(
         "https://example.test/v1", "key", "model-x", transport=transport
     )

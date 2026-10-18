@@ -4,6 +4,7 @@ Revision ID: 0008
 Revises: 0007
 Create Date: 2026-10-18
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -17,12 +18,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "vision_observations", sa.Column("provider", sa.String(length=64), nullable=True)
-    )
-    op.add_column(
-        "vision_observations", sa.Column("model", sa.String(length=128), nullable=True)
-    )
+    op.add_column("vision_observations", sa.Column("provider", sa.String(length=64), nullable=True))
+    op.add_column("vision_observations", sa.Column("model", sa.String(length=128), nullable=True))
 
 
 def downgrade() -> None:

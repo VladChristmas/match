@@ -66,9 +66,7 @@ async def create_compatibility_assessment(
     payload: CompatibilityRequest, session: SessionDep, user: CurrentUser
 ) -> CompatibilityAssessment:
     conversation = await _resolve_conversation(session, user, payload.conversation_id)
-    user_profile = await session.scalar(
-        select(UserProfile).where(UserProfile.user_id == user.id)
-    )
+    user_profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
     reciprocity = payload.reciprocity
     if reciprocity is None and conversation is not None:
         counts = await _direction_counts(session, conversation.id)
@@ -109,17 +107,11 @@ async def list_compatibility_assessments(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> list[CompatibilityAssessment]:
-    statement = select(CompatibilityAssessment).where(
-        CompatibilityAssessment.user_id == user.id
-    )
+    statement = select(CompatibilityAssessment).where(CompatibilityAssessment.user_id == user.id)
     if conversation_id is not None:
-        statement = statement.where(
-            CompatibilityAssessment.conversation_id == conversation_id
-        )
+        statement = statement.where(CompatibilityAssessment.conversation_id == conversation_id)
     result = await session.scalars(
-        statement.order_by(CompatibilityAssessment.assessed_at.desc())
-        .limit(limit)
-        .offset(offset)
+        statement.order_by(CompatibilityAssessment.assessed_at.desc()).limit(limit).offset(offset)
     )
     return list(result)
 
@@ -146,8 +138,7 @@ async def create_risk_assessment(
         conversation_id=conversation.id if conversation else None,
         risk_category=outcome.risk_category,
         signals=[
-            {"category": signal.category, "matches": signal.matches}
-            for signal in outcome.signals
+            {"category": signal.category, "matches": signal.matches} for signal in outcome.signals
         ],
         confidence=outcome.confidence,
         explanation=outcome.explanation,

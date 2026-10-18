@@ -7,9 +7,7 @@ async def test_export_requires_token(client):
 
 
 async def test_export_contains_created_data(client):
-    await client.patch(
-        "/api/v1/profile", headers=TOKEN_HEADER, json={"relationship_goals": ["x"]}
-    )
+    await client.patch("/api/v1/profile", headers=TOKEN_HEADER, json={"relationship_goals": ["x"]})
     created = await client.post("/api/v1/conversations", headers=TOKEN_HEADER, json={})
     conversation_id = created.json()["id"]
     await client.post(

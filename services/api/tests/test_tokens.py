@@ -13,9 +13,7 @@ def bearer(token: str) -> dict[str, str]:
 
 
 async def _issue(client, label: str = "test") -> dict:
-    response = await client.post(
-        "/api/v1/tokens", headers=LEGACY_HEADER, json={"label": label}
-    )
+    response = await client.post("/api/v1/tokens", headers=LEGACY_HEADER, json={"label": label})
     assert response.status_code == 201
     return response.json()
 
@@ -53,23 +51,15 @@ async def test_list_hides_secrets(client):
 
 async def test_rotate_revokes_old_token(client):
     issued = await _issue(client, label="rotate-me")
-    rotated = await client.post(
-        f"/api/v1/tokens/{issued['id']}/rotate", headers=LEGACY_HEADER
-    )
+    rotated = await client.post(f"/api/v1/tokens/{issued['id']}/rotate", headers=LEGACY_HEADER)
     assert rotated.status_code == 200
     new_token = rotated.json()["token"]
     assert new_token != issued["token"]
 
-    assert (
-        await client.get("/api/v1/profile", headers=bearer(issued["token"]))
-    ).status_code == 401
-    assert (
-        await client.get("/api/v1/profile", headers=bearer(new_token))
-    ).status_code == 200
+    assert (await client.get("/api/v1/profile", headers=bearer(issued["token"]))).status_code == 401
+    assert (await client.get("/api/v1/profile", headers=bearer(new_token))).status_code == 200
 
-    again = await client.post(
-        f"/api/v1/tokens/{issued['id']}/rotate", headers=LEGACY_HEADER
-    )
+    again = await client.post(f"/api/v1/tokens/{issued['id']}/rotate", headers=LEGACY_HEADER)
     assert again.status_code == 409
 
 
@@ -78,9 +68,7 @@ async def test_revoke_blocks_token(client):
     assert (
         await client.delete(f"/api/v1/tokens/{issued['id']}", headers=LEGACY_HEADER)
     ).status_code == 204
-    assert (
-        await client.get("/api/v1/profile", headers=bearer(issued["token"]))
-    ).status_code == 401
+    assert (await client.get("/api/v1/profile", headers=bearer(issued["token"]))).status_code == 401
 
 
 async def test_token_is_isolated_per_user(client):
@@ -89,12 +77,8 @@ async def test_token_is_isolated_per_user(client):
     assert (
         await client.post(f"/api/v1/tokens/{issued['id']}/rotate", headers=other)
     ).status_code == 404
-    assert (
-        await client.delete(f"/api/v1/tokens/{issued['id']}", headers=other)
-    ).status_code == 404
-    assert (
-        await client.get("/api/v1/profile", headers=bearer(issued["token"]))
-    ).status_code == 200
+    assert (await client.delete(f"/api/v1/tokens/{issued['id']}", headers=other)).status_code == 404
+    assert (await client.get("/api/v1/profile", headers=bearer(issued["token"]))).status_code == 200
 
 
 async def test_legacy_tokens_can_be_disabled(client, monkeypatch):

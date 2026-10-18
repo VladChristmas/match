@@ -33,9 +33,7 @@ async def test_compatibility_uses_profile_and_counterpart(client):
 
 
 async def test_compatibility_is_isolated_between_users(client):
-    await client.post(
-        "/api/v1/analysis/compatibility", headers=TOKEN_HEADER, json={}
-    )
+    await client.post("/api/v1/analysis/compatibility", headers=TOKEN_HEADER, json={})
     listed = await client.get("/api/v1/analysis/compatibility", headers=OTHER_HEADER)
     assert listed.json() == []
 

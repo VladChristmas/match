@@ -27,9 +27,7 @@ class OllamaProvider:
             ],
         }
         started = time.perf_counter()
-        async with httpx.AsyncClient(
-            base_url=self.base_url, timeout=self.timeout
-        ) as client:
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
             response = await client.post("/api/chat", json=payload)
             response.raise_for_status()
             data = response.json()

@@ -104,9 +104,7 @@ async def test_approve_non_pending_conflicts(client):
         json={"conversation_id": conversation_id},
     )
     action_id = created.json()["id"]
-    response = await client.post(
-        f"/api/v1/agent/actions/{action_id}/approve", headers=TOKEN_HEADER
-    )
+    response = await client.post(f"/api/v1/agent/actions/{action_id}/approve", headers=TOKEN_HEADER)
     assert response.status_code == 409
 
 
@@ -134,9 +132,7 @@ async def test_explicit_text_and_listing(client):
     assert created.status_code == 201
     assert created.json()["text"] == "Привет!"
 
-    listed = await client.get(
-        "/api/v1/agent/actions?status=pending", headers=TOKEN_HEADER
-    )
+    listed = await client.get("/api/v1/agent/actions?status=pending", headers=TOKEN_HEADER)
     assert listed.status_code == 200
     assert all(item["status"] == "pending" for item in listed.json())
     assert any(item["text"] == "Привет!" for item in listed.json())

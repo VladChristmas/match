@@ -60,9 +60,7 @@ def _aware(value: datetime) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
-async def create_token(
-    session: AsyncSession, user: User, label: str
-) -> tuple[AccessToken, str]:
+async def create_token(session: AsyncSession, user: User, label: str) -> tuple[AccessToken, str]:
     token = generate_token()
     record = AccessToken(user_id=user.id, token_hash=hash_token(token), label=label)
     session.add(record)

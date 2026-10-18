@@ -218,9 +218,7 @@ async def test_analysis_respects_user_limit(client, monkeypatch):
     monkeypatch.setenv("MATCH_LLM_USER_REQUEST_LIMIT", "1")
     get_settings.cache_clear()
     try:
-        first = await client.post(
-            "/api/v1/vision/observations", headers=TOKEN_HEADER, json=payload
-        )
+        first = await client.post("/api/v1/vision/observations", headers=TOKEN_HEADER, json=payload)
         second = await client.post(
             "/api/v1/vision/observations", headers=TOKEN_HEADER, json=payload
         )

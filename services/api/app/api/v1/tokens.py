@@ -45,9 +45,7 @@ async def rotate(
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
     if record.revoked_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Token already revoked"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Token already revoked")
     new_record, token = await rotate_token(session, user, record)
     return AccessTokenIssued(
         id=new_record.id,
@@ -58,9 +56,7 @@ async def rotate(
 
 
 @router.delete("/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def revoke(
-    token_id: uuid.UUID, session: SessionDep, user: CurrentUser
-) -> Response:
+async def revoke(token_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> Response:
     record = await get_owned_token(session, user, token_id)
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")

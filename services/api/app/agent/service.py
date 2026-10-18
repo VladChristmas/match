@@ -23,9 +23,7 @@ REJECTED = "rejected"
 
 
 async def get_or_create_settings(session: AsyncSession, user: User) -> AgentSettings:
-    settings = await session.scalar(
-        select(AgentSettings).where(AgentSettings.user_id == user.id)
-    )
+    settings = await session.scalar(select(AgentSettings).where(AgentSettings.user_id == user.id))
     if settings is None:
         settings = AgentSettings(user_id=user.id)
         session.add(settings)
@@ -40,9 +38,7 @@ def should_auto_send(settings: AgentSettings, conversation: Conversation) -> boo
     return conversation.autonomy_mode == AUTO_SEND
 
 
-async def _deliver(
-    session: AsyncSession, conversation: Conversation, action: AgentAction
-) -> None:
+async def _deliver(session: AsyncSession, conversation: Conversation, action: AgentAction) -> None:
     message = Message(
         conversation_id=conversation.id,
         direction="outbound",

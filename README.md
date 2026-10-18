@@ -40,7 +40,7 @@
 Среда сборки Rust/Tauri требует загрузки MSVC-окружения (VS BuildTools 2022 не зарегистрирован в `vswhere`):
 
 ```powershell
-.\scripts\dev-env.ps1   # импортирует vcvars64 в текущую сессию
+. .\scripts\dev-env.ps1   # dot-source: импортирует vcvars64 в текущую сессию
 ```
 
 Клиент (`apps/desktop`, Tauri + React + TS):
@@ -61,6 +61,13 @@ python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload
+```
+
+Проверки перед коммитом (формат, линт, тесты, сборка клиента — то же, что в CI):
+
+```powershell
+. .\scripts\dev-env.ps1   # нужен MSVC для Rust/Tauri
+.\scripts\check.ps1
 ```
 
 ## Лицензия

@@ -4,6 +4,7 @@ Revision ID: 0006
 Revises: 0005
 Create Date: 2026-10-18
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -27,9 +28,7 @@ def upgrade() -> None:
             nullable=False,
             server_default="auto_send",
         ),
-        sa.Column(
-            "queue_paused", sa.Boolean(), nullable=False, server_default=sa.false()
-        ),
+        sa.Column("queue_paused", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -58,9 +57,7 @@ def upgrade() -> None:
         sa.Column("provider", sa.String(length=64), nullable=True),
         sa.Column("model", sa.String(length=128), nullable=True),
         sa.Column("validation_ok", sa.Boolean(), nullable=True),
-        sa.Column(
-            "status", sa.String(length=32), nullable=False, server_default="pending"
-        ),
+        sa.Column("status", sa.String(length=32), nullable=False, server_default="pending"),
         sa.Column("idempotency_key", sa.String(length=255), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
@@ -73,12 +70,8 @@ def upgrade() -> None:
         sa.Column("decided_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["conversation_id"], ["conversations.id"], ondelete="CASCADE"
-        ),
-        sa.UniqueConstraint(
-            "user_id", "idempotency_key", name="uq_agent_actions_user_idempotency"
-        ),
+        sa.ForeignKeyConstraint(["conversation_id"], ["conversations.id"], ondelete="CASCADE"),
+        sa.UniqueConstraint("user_id", "idempotency_key", name="uq_agent_actions_user_idempotency"),
     )
     op.create_index("ix_agent_actions_user_id", "agent_actions", ["user_id"])
     op.create_index("ix_agent_actions_conversation_id", "agent_actions", ["conversation_id"])
