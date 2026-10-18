@@ -1,8 +1,8 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–4 и 6 выполнены; Этап 5 Tauri-клиент отложен; миграции 0001–0005)
+## Last Updated: 2026-10-18 (MATCH: Этапы 0–6 выполнены; Этап 5 Tauri-клиент — базовый UI готов; миграции 0001–0005)
 
-### Current Task: MATCH — Фаза B. Backend-ready. Следующий шаг — Этап 5 (Tauri-клиент) или Этап 7 (интеграции).
+### Current Task: MATCH — Фаза B. Backend-ready и desktop-клиент с базовым UI. Следующий шаг — Этап 7 (интеграции) или Этап 8 (автономность).
 
 - **Проект**: D:\MATCH (Tauri + React + TS клиент, Python + FastAPI сервисы).
 - **Git**: HEAD = **c0ab3b1** (локально). services/api (Этапы 1–2) ещё не закоммичены.
@@ -77,13 +77,23 @@
 - `LLMGateway`: порядок провайдеров, fallback, `LLMUnavailable` → 503; `ModelRun` + миграция `0005_model_runs`;
   per-user лимит запросов → 429. Тесты 47 passed.
 
+### Этап 5 — сделано (apps/desktop)
+- Tauri 2 + React 19 + TS + Vite. Оболочка Rust: команды `load_settings`/`save_settings`
+  (config-dir) и `app_info` (`src-tauri/src/lib.rs`).
+- UI-разделы: Профиль (цели/ценности/границы + профиль общения), Знакомства (разговоры,
+  импорт сообщений, генерация черновиков), Анализ (совместимость/риск + история),
+  Автономность (режимы), Журнал (обратная связь + локальный лог), Настройки (API/токен).
+- Типизированный REST-клиент (`src/lib/api.ts`) под существующие endpoint'ы; Bearer-токен (ADR-0010).
+- Проверено: `pnpm build` (tsc + vite) ok; `cargo check` (MSVC через `scripts/dev-env.ps1`) ok.
+- CI: jobs `desktop-web` (ubuntu) и `desktop-rust` (windows-latest).
+- Ограничение: vision-слой (Windows.Graphics.Capture, ADR-0008) ещё не подключён.
+
 ### Git (локально)
 - Коммиты: ba29ec3 (infra), 55d65ad (stage1), d03f831 (stage2), 0bf7a25 (stage3),
-  7c9fa09 (docs), 3a30e10 (stage4), 8ea3072 (statem), fbb1938 (stage6). origin не пушился.
+  7c9fa09 (docs), 3a30e10 (stage4), 8ea3072 (statem), fbb1938 (stage6),
+  60a28a7 (statem), 38c5afc (stage5 desktop). origin не пушился.
 
 ### Next Action
-1. **Этап 5**: Windows-клиент (Tauri + React + TS) — знакомства, профиль, автономность, журнал;
-   нужен рабочий MSVC (`scripts/dev-env.ps1`, OQ-4).
-2. **Этап 7**: интеграции (contract-тесты, manual-import, `unsupported`).
-3. **Этап 8**: автономность (очередь, идемпотентность, pause/resume).
-4. **Этап 9**: предрелиз. Открытые: OQ-2..OQ-4, OQ-6, OQ-7.
+1. **Этап 7**: интеграции (contract-тесты, manual-import, `unsupported`).
+2. **Этап 8**: автономность (очередь, идемпотентность, pause/resume).
+3. **Этап 9**: предрелиз. Открытые: OQ-2..OQ-4, OQ-6, OQ-7.
