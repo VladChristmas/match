@@ -310,3 +310,34 @@ export interface MemoryEvent {
   detail: string | null;
   created_at: string;
 }
+
+export interface LocalProfile {
+  user_id: UUID;
+  kind: "profile" | "communication";
+  profile_json: string;
+  updated_at: string;
+}
+
+export interface LocalConversation {
+  id: UUID;
+  user_id: UUID;
+  match_id: UUID | null;
+  status: string;
+  autonomy_mode: string;
+  last_activity_at: string | null;
+  context_version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LocalMessage {
+  id: UUID;
+  conversation_id: UUID;
+  external_message_id: string | null;
+  direction: Direction;
+  content: string | null;
+  source: string;
+  processing_status: string;
+  created_at: string;
+  processed_at: string | null;
+}

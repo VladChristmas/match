@@ -275,3 +275,7 @@
    журнал `agent_decisions`, стоп-факторы, `/agent/decisions` (`tests/test_decision.py`); Memory Lifecycle
    на клиенте (`memories`/`memory_events` в `match.db`, команды `memory_*`, тесты в `storage.rs`).
    Далее Этап 25 Relationship Dynamics — вопросы OQ-9…OQ-12 (`open-questions.md`) остаются открытыми.
+4. **Локальная копия профиля и истории (сохранность данных, не перенос):** сервер остаётся
+   авторитетным источником; в клиентском `match.db` (схема v4) добавлены таблицы
+   `local_profile`/`local_conversations`/`local_messages` и команды `profile_save/load`,
+   `conversations_save/load`, `messages_save/load` (+ 3 cargo-теста). `pnpm build` ok.

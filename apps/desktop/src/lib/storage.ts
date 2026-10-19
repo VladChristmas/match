@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  LocalConversation,
+  LocalMessage,
   Memory,
   MemoryCreate,
   MemoryEvent,
@@ -28,6 +30,9 @@ export interface StorageInfo {
   journal_entries: number;
   outbox_entries: number;
   memory_entries: number;
+  local_profile_entries: number;
+  local_conversations_entries: number;
+  local_messages_entries: number;
   size_bytes: number;
   settings_present: boolean;
 }
@@ -203,6 +208,56 @@ export async function memoryEvents(memoryId: string): Promise<MemoryEvent[]> {
   if (!storageSupported()) return [];
   try {
     return await invoke<MemoryEvent[]>("memory_events", { memory_id: memoryId });
+  } catch {
+    return [];
+  }
+}
+
+export async function profileSave(
+  userId: string,
+  kind: "profile" | "communication",
+  profileJson: string,
+  updatedAt: string,
+): Promise<void> {
+  if (!storageSupported()) return;
+  await invoke<void>("profile_save", { user_id: userId, kind, profile_json: profileJson, updated_at: updatedAt });
+}
+
+export async function profileLoad(
+  userId: string,
+  kind: "profile" | "communication",
+): Promise<string | null> {
+  if (!storageSupported()) return null;
+  try {
+    return await invoke<string>("profile_load", { user_id: userId, kind });
+  } catch {
+    return null;
+  }
+}
+
+export async function conversationsSave(entries: LocalConversation[]): Promise<void> {
+  if (!storageSupported()) return;
+  await invoke<void>("conversations_save", { entries });
+}
+
+export async function conversationsLoad(userId: string): Promise<LocalConversation[]> {
+  if (!storageSupported()) return [];
+  try {
+    return await invoke<LocalConversation[]>("conversations_load", { user_id: userId });
+  } catch {
+    return [];
+  }
+}
+
+export async function messagesSave(entries: LocalMessage[]): Promise<void> {
+  if (!storageSupported()) return;
+  await invoke<void>("messages_save", { entries });
+}
+
+export async function messagesLoad(conversationId: string): Promise<LocalMessage[]> {
+  if (!storageSupported()) return [];
+  try {
+    return await invoke<LocalMessage[]>("messages_load", { conversation_id: conversationId });
   } catch {
     return [];
   }

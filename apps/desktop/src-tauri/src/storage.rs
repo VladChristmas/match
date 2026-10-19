@@ -12,12 +12,12 @@
 use std::fs;
 use std::path::PathBuf;
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager};
 
-const SCHEMA_VERSION: i64 = 3;
+const SCHEMA_VERSION: i64 = 4;
 const JOURNAL_LIMIT: i64 = 500;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -76,6 +76,45 @@ pub struct MemoryEvent {
     pub created_at: String,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[allow(dead_code)]
+pub struct LocalProfile {
+    pub user_id: String,
+    pub kind: String, // "profile" | "communication"
+    pub profile_json: String,
+    pub updated_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LocalConversation {
+    pub id: String,
+    pub user_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub match_id: Option<String>,
+    pub status: String,
+    pub autonomy_mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_activity_at: Option<String>,
+    pub context_version: i32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LocalMessage {
+    pub id: String,
+    pub conversation_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_message_id: Option<String>,
+    pub direction: String,
+    pub content: Option<String>,
+    pub source: String,
+    pub processing_status: String,
+    pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub processed_at: Option<String>,
+}
+
 #[derive(Serialize)]
 pub struct StateSnapshot {
     pub settings: Value,
@@ -90,6 +129,9 @@ pub struct StorageInfo {
     pub journal_entries: i64,
     pub outbox_entries: i64,
     pub memory_entries: i64,
+    pub local_profile_entries: i64,
+    pub local_conversations_entries: i64,
+    pub local_messages_entries: i64,
     pub size_bytes: u64,
     pub settings_present: bool,
 }
@@ -177,6 +219,42 @@ fn migrate(conn: &Connection) -> Result<(), String> {
              CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id);
              CREATE INDEX IF NOT EXISTS idx_memories_conversation_id ON memories(conversation_id);
              CREATE INDEX IF NOT EXISTS idx_memory_events_memory_id ON memory_events(memory_id);",
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    if version < 4 {
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS local_profile (
+                 user_id TEXT NOT NULL,
+                 kind TEXT NOT NULL,
+                 profile_json TEXT NOT NULL,
+                 updated_at TEXT NOT NULL,
+                 PRIMARY KEY (user_id, kind)
+             );
+             CREATE TABLE IF NOT EXISTS local_conversations (
+                 id TEXT PRIMARY KEY,
+                 user_id TEXT NOT NULL,
+                 match_id TEXT,
+                 status TEXT NOT NULL,
+                 autonomy_mode TEXT NOT NULL,
+                 last_activity_at TEXT,
+                 context_version INTEGER NOT NULL DEFAULT 1,
+                 created_at TEXT NOT NULL,
+                 updated_at TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS local_messages (
+                 id TEXT PRIMARY KEY,
+                 conversation_id TEXT NOT NULL,
+                 external_message_id TEXT,
+                 direction TEXT NOT NULL,
+                 content TEXT,
+                 source TEXT NOT NULL,
+                 processing_status TEXT NOT NULL,
+                 created_at TEXT NOT NULL,
+                 processed_at TEXT
+             );
+             CREATE INDEX IF NOT EXISTS idx_local_conversations_user_id ON local_conversations(user_id);
+             CREATE INDEX IF NOT EXISTS idx_local_messages_conversation_id ON local_messages(conversation_id);",
         )
         .map_err(|e| e.to_string())?;
     }
@@ -726,6 +804,184 @@ pub fn memory_events(app: AppHandle, memory_id: String) -> Result<Vec<MemoryEven
     load_memory_events(&conn, &memory_id)
 }
 
+/// Сохраняет профиль/анкету пользователя локально (копия серверных данных).
+#[tauri::command]
+pub fn profile_save(
+    app: AppHandle,
+    user_id: String,
+    kind: String,
+    profile_json: String,
+    updated_at: String,
+) -> Result<(), String> {
+    let conn = open(&app)?;
+    conn.execute(
+        "INSERT INTO local_profile (user_id, kind, profile_json, updated_at)
+          VALUES (?1, ?2, ?3, ?4)
+          ON CONFLICT(user_id, kind) DO UPDATE SET
+            profile_json = excluded.profile_json,
+            updated_at = excluded.updated_at",
+        params![user_id, kind, profile_json, updated_at],
+    )
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
+/// Загружает локальную копию профиля/анкеты пользователя.
+#[tauri::command]
+pub fn profile_load(
+    app: AppHandle,
+    user_id: String,
+    kind: String,
+) -> Result<Option<String>, String> {
+    let conn = open(&app)?;
+    let row: Option<String> = conn
+        .query_row(
+            "SELECT profile_json FROM local_profile WHERE user_id = ?1 AND kind = ?2",
+            params![user_id, kind],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    Ok(row)
+}
+
+/// Сохраняет разговоры локально (копия серверных данных, идемпотентно по id).
+#[tauri::command]
+pub fn conversations_save(app: AppHandle, entries: Vec<LocalConversation>) -> Result<(), String> {
+    let mut conn = open(&app)?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    for entry in &entries {
+        tx.execute(
+            "INSERT INTO local_conversations
+                 (id, user_id, match_id, status, autonomy_mode, last_activity_at,
+                  context_version, created_at, updated_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+              ON CONFLICT(id) DO UPDATE SET
+                user_id = excluded.user_id,
+                match_id = excluded.match_id,
+                status = excluded.status,
+                autonomy_mode = excluded.autonomy_mode,
+                last_activity_at = excluded.last_activity_at,
+                context_version = excluded.context_version,
+                created_at = excluded.created_at,
+                updated_at = excluded.updated_at",
+            params![
+                entry.id,
+                entry.user_id,
+                entry.match_id,
+                entry.status,
+                entry.autonomy_mode,
+                entry.last_activity_at,
+                entry.context_version,
+                entry.created_at,
+                entry.updated_at,
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())
+}
+
+/// Загружает локальные разговоры пользователя.
+#[tauri::command]
+pub fn conversations_load(
+    app: AppHandle,
+    user_id: String,
+) -> Result<Vec<LocalConversation>, String> {
+    let conn = open(&app)?;
+    let mut statement = conn
+        .prepare(
+            "SELECT id, user_id, match_id, status, autonomy_mode, last_activity_at,
+                context_version, created_at, updated_at
+         FROM local_conversations WHERE user_id = ?1 ORDER BY updated_at DESC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = statement
+        .query_map(params![user_id], |row| {
+            Ok(LocalConversation {
+                id: row.get(0)?,
+                user_id: row.get(1)?,
+                match_id: row.get(2)?,
+                status: row.get(3)?,
+                autonomy_mode: row.get(4)?,
+                last_activity_at: row.get(5)?,
+                context_version: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+/// Сохраняет сообщения локально (копия серверных данных, идемпотентно по id).
+#[tauri::command]
+pub fn messages_save(app: AppHandle, entries: Vec<LocalMessage>) -> Result<(), String> {
+    let mut conn = open(&app)?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    for entry in &entries {
+        tx.execute(
+            "INSERT INTO local_messages
+                 (id, conversation_id, external_message_id, direction, content,
+                  source, processing_status, created_at, processed_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+              ON CONFLICT(id) DO UPDATE SET
+                conversation_id = excluded.conversation_id,
+                external_message_id = excluded.external_message_id,
+                direction = excluded.direction,
+                content = excluded.content,
+                source = excluded.source,
+                processing_status = excluded.processing_status,
+                created_at = excluded.created_at,
+                processed_at = excluded.processed_at",
+            params![
+                entry.id,
+                entry.conversation_id,
+                entry.external_message_id,
+                entry.direction,
+                entry.content,
+                entry.source,
+                entry.processing_status,
+                entry.created_at,
+                entry.processed_at,
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.commit().map_err(|e| e.to_string())
+}
+
+/// Загружает локальные сообщения разговора.
+#[tauri::command]
+pub fn messages_load(app: AppHandle, conversation_id: String) -> Result<Vec<LocalMessage>, String> {
+    let conn = open(&app)?;
+    let mut statement = conn
+        .prepare(
+            "SELECT id, conversation_id, external_message_id, direction, content,
+                source, processing_status, created_at, processed_at
+         FROM local_messages WHERE conversation_id = ?1 ORDER BY created_at ASC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = statement
+        .query_map(params![conversation_id], |row| {
+            Ok(LocalMessage {
+                id: row.get(0)?,
+                conversation_id: row.get(1)?,
+                external_message_id: row.get(2)?,
+                direction: row.get(3)?,
+                content: row.get(4)?,
+                source: row.get(5)?,
+                processing_status: row.get(6)?,
+                created_at: row.get(7)?,
+                processed_at: row.get(8)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
 /// Сведения о локальном хранилище для экрана настроек.
 #[tauri::command]
 pub fn storage_info(app: AppHandle) -> Result<StorageInfo, String> {
@@ -739,6 +995,17 @@ pub fn storage_info(app: AppHandle) -> Result<StorageInfo, String> {
         .map_err(|e| e.to_string())?;
     let memory_entries: i64 = conn
         .query_row("SELECT COUNT(*) FROM memories", [], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    let local_profile_entries: i64 = conn
+        .query_row("SELECT COUNT(*) FROM local_profile", [], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    let local_conversations_entries: i64 = conn
+        .query_row("SELECT COUNT(*) FROM local_conversations", [], |row| {
+            row.get(0)
+        })
+        .map_err(|e| e.to_string())?;
+    let local_messages_entries: i64 = conn
+        .query_row("SELECT COUNT(*) FROM local_messages", [], |row| row.get(0))
         .map_err(|e| e.to_string())?;
     let settings_present: i64 = conn
         .query_row("SELECT COUNT(*) FROM settings", [], |row| row.get(0))
@@ -754,6 +1021,9 @@ pub fn storage_info(app: AppHandle) -> Result<StorageInfo, String> {
         journal_entries,
         outbox_entries,
         memory_entries,
+        local_profile_entries,
+        local_conversations_entries,
+        local_messages_entries,
         size_bytes,
         settings_present: settings_present > 0,
     })
@@ -1098,5 +1368,257 @@ mod tests {
             .expect("version");
         assert_eq!(version, SCHEMA_VERSION);
         insert_memory(&conn, &memory_item(1)).expect("memory works after upgrade");
+    }
+
+    fn local_profile(user_id: &str, kind: &str) -> (String, String, String, String) {
+        (
+            user_id.to_string(),
+            kind.to_string(),
+            serde_json::json!({"relationship_goals": ["семья"]}).to_string(),
+            "2026-10-18T12:00:00Z".to_string(),
+        )
+    }
+
+    fn local_conversation(index: usize, user_id: &str) -> LocalConversation {
+        LocalConversation {
+            id: format!("conv-{index}"),
+            user_id: user_id.to_string(),
+            match_id: Some(format!("match-{index}")),
+            status: "active".to_string(),
+            autonomy_mode: "auto_send".to_string(),
+            last_activity_at: Some(format!("2026-10-18T12:{:02}:00Z", index % 60)),
+            context_version: 1,
+            created_at: format!("2026-10-18T12:{:02}:00Z", index % 60),
+            updated_at: format!("2026-10-18T12:{:02}:00Z", index % 60),
+        }
+    }
+
+    fn local_message(index: usize, conversation_id: &str) -> LocalMessage {
+        LocalMessage {
+            id: format!("msg-{index}"),
+            conversation_id: conversation_id.to_string(),
+            external_message_id: Some(format!("ext-{index}")),
+            direction: "inbound".to_string(),
+            content: Some(format!("content {index}")),
+            source: "manual".to_string(),
+            processing_status: "received".to_string(),
+            created_at: format!("2026-10-18T12:{:02}:00Z", index % 60),
+            processed_at: None,
+        }
+    }
+
+    fn insert_local_profile(
+        conn: &Connection,
+        user_id: &str,
+        kind: &str,
+        json: &str,
+        updated_at: &str,
+    ) {
+        conn.execute(
+            "INSERT INTO local_profile (user_id, kind, profile_json, updated_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![user_id, kind, json, updated_at],
+        )
+        .expect("insert local_profile");
+    }
+
+    fn insert_local_conversation(conn: &Connection, entry: &LocalConversation) {
+        conn.execute(
+            "INSERT INTO local_conversations
+                 (id, user_id, match_id, status, autonomy_mode, last_activity_at,
+                  context_version, created_at, updated_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                entry.id,
+                entry.user_id,
+                entry.match_id,
+                entry.status,
+                entry.autonomy_mode,
+                entry.last_activity_at,
+                entry.context_version,
+                entry.created_at,
+                entry.updated_at,
+            ],
+        )
+        .expect("insert local_conversation");
+    }
+
+    fn insert_local_message(conn: &Connection, entry: &LocalMessage) {
+        conn.execute(
+            "INSERT INTO local_messages
+                 (id, conversation_id, external_message_id, direction, content,
+                  source, processing_status, created_at, processed_at)
+              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                entry.id,
+                entry.conversation_id,
+                entry.external_message_id,
+                entry.direction,
+                entry.content,
+                entry.source,
+                entry.processing_status,
+                entry.created_at,
+                entry.processed_at,
+            ],
+        )
+        .expect("insert local_message");
+    }
+
+    fn list_conversations_filtered(
+        conn: &Connection,
+        user_id: &str,
+    ) -> Result<Vec<LocalConversation>, String> {
+        let mut statement = conn
+            .prepare(
+                "SELECT id, user_id, match_id, status, autonomy_mode, last_activity_at,
+                    context_version, created_at, updated_at
+             FROM local_conversations WHERE user_id = ?1 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = statement
+            .query_map(params![user_id], |row| {
+                Ok(LocalConversation {
+                    id: row.get(0)?,
+                    user_id: row.get(1)?,
+                    match_id: row.get(2)?,
+                    status: row.get(3)?,
+                    autonomy_mode: row.get(4)?,
+                    last_activity_at: row.get(5)?,
+                    context_version: row.get(6)?,
+                    created_at: row.get(7)?,
+                    updated_at: row.get(8)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())
+    }
+
+    fn list_messages_filtered(
+        conn: &Connection,
+        conversation_id: &str,
+    ) -> Result<Vec<LocalMessage>, String> {
+        let mut statement = conn
+            .prepare(
+                "SELECT id, conversation_id, external_message_id, direction, content,
+                    source, processing_status, created_at, processed_at
+             FROM local_messages WHERE conversation_id = ?1 ORDER BY created_at ASC",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = statement
+            .query_map(params![conversation_id], |row| {
+                Ok(LocalMessage {
+                    id: row.get(0)?,
+                    conversation_id: row.get(1)?,
+                    external_message_id: row.get(2)?,
+                    direction: row.get(3)?,
+                    content: row.get(4)?,
+                    source: row.get(5)?,
+                    processing_status: row.get(6)?,
+                    created_at: row.get(7)?,
+                    processed_at: row.get(8)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn local_profile_save_and_load() {
+        let conn = memory();
+        let (user_id, kind, json, updated_at) = local_profile("user-1", "profile");
+        insert_local_profile(&conn, &user_id, &kind, &json, &updated_at);
+        let loaded: Option<String> = conn
+            .query_row(
+                "SELECT profile_json FROM local_profile WHERE user_id = ?1 AND kind = ?2",
+                params![&user_id, &kind],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("query");
+        assert_eq!(loaded, Some(json));
+        // чужой пользователь не видит профиль
+        let other: Option<String> = conn
+            .query_row(
+                "SELECT profile_json FROM local_profile WHERE user_id = ?1 AND kind = ?2",
+                params!["user-2", &kind],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("query");
+        assert!(other.is_none());
+    }
+
+    #[test]
+    fn local_conversations_and_messages_roundtrip() {
+        let conn = memory();
+        let conv = local_conversation(1, "user-1");
+        insert_local_conversation(&conn, &conv);
+        let msg = local_message(1, &conv.id);
+        insert_local_message(&conn, &msg);
+
+        let convs = list_conversations_filtered(&conn, "user-1").expect("list convs");
+        assert_eq!(convs.len(), 1);
+        assert_eq!(convs[0].id, "conv-1");
+        assert_eq!(convs[0].autonomy_mode, "auto_send");
+
+        let msgs = list_messages_filtered(&conn, &conv.id).expect("list msgs");
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0].content, Some("content 1".to_string()));
+        assert_eq!(msgs[0].direction, "inbound");
+
+        // чужой пользователь не видит разговоры
+        let other_convs = list_conversations_filtered(&conn, "user-2").expect("list other convs");
+        assert!(other_convs.is_empty());
+    }
+
+    #[test]
+    fn migrate_from_v3_adds_local_tables() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        conn.execute_batch(
+            "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE journal (
+                 id TEXT PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL,
+                 summary TEXT NOT NULL, detail TEXT
+             );
+             CREATE TABLE outbox (
+                 id TEXT PRIMARY KEY, at TEXT NOT NULL, method TEXT NOT NULL,
+                 path TEXT NOT NULL, body TEXT, idempotency_key TEXT,
+                 label TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0,
+                 last_error TEXT
+             );
+             CREATE TABLE memories (
+                 id TEXT PRIMARY KEY, user_id TEXT NOT NULL, conversation_id TEXT,
+                 kind TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'received',
+                 content TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'message',
+                 confidence REAL NOT NULL DEFAULT 0.5, valid_until TEXT,
+                 created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+             );
+             CREATE TABLE memory_events (
+                 id TEXT PRIMARY KEY, memory_id TEXT NOT NULL, event_type TEXT NOT NULL,
+                 actor TEXT NOT NULL DEFAULT 'system', detail TEXT,
+                 created_at TEXT NOT NULL
+             );",
+        )
+        .expect("v3 schema");
+        conn.pragma_update(None, "user_version", 3).expect("set v3");
+        migrate(&conn).expect("migrate to v4");
+        let version: i64 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("version");
+        assert_eq!(version, SCHEMA_VERSION);
+        insert_local_profile(&conn, "user-1", "profile", "{}", "2026-10-18T12:00:00Z");
+        insert_local_conversation(&conn, &local_conversation(1, "user-1"));
+        insert_local_message(&conn, &local_message(1, "conv-1"));
+        let profile: Option<String> = conn
+            .query_row(
+                "SELECT profile_json FROM local_profile WHERE user_id = ?1 AND kind = ?2",
+                params!["user-1", "profile"],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("query");
+        assert_eq!(profile.as_deref(), Some("{}"));
     }
 }

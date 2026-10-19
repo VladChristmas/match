@@ -60,7 +60,13 @@ pub fn run() {
             storage::memory_verify,
             storage::memory_correct,
             storage::memory_delete,
-            storage::memory_events
+            storage::memory_events,
+            storage::profile_save,
+            storage::profile_load,
+            storage::conversations_save,
+            storage::conversations_load,
+            storage::messages_save,
+            storage::messages_load
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
