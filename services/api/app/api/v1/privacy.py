@@ -7,6 +7,7 @@ from app.api.deps import CurrentUser, SessionDep
 from app.models import (
     AccessToken,
     AgentAction,
+    AgentDecision,
     AgentSettings,
     CommunicationProfile,
     CompatibilityAssessment,
@@ -74,6 +75,7 @@ async def export_data(session: SessionDep, user: CurrentUser) -> dict:
         "risk": await many(RiskAssessment),
         "agent_settings": _dump(agent_settings),
         "agent_actions": await many(AgentAction),
+        "agent_decisions": await many(AgentDecision),
         "model_runs": await many(ModelRun),
         "vision_observations": await many(VisionObservation),
         "access_tokens": [
@@ -100,6 +102,7 @@ async def deletion_request(session: SessionDep, user: CurrentUser) -> Response:
     if conversation_ids:
         await session.execute(delete(Message).where(Message.conversation_id.in_(conversation_ids)))
     for model in (
+        AgentDecision,
         AgentAction,
         UserFeedback,
         CompatibilityAssessment,

@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.decision import STOP, build_state, decide, persist_decision
 from app.dialogue.service import build_draft
 from app.llm.gateway import LLMGateway
 from app.models import AgentAction, AgentSettings, Conversation, Message, User
@@ -78,6 +79,9 @@ async def enqueue_action(
 
     settings = await get_or_create_settings(session, user)
 
+    state = await build_state(session, user, conversation, trigger_text=text)
+    decision = decide(state, trigger_text=text)
+
     action = AgentAction(
         user_id=user.id,
         conversation_id=conversation.id,
@@ -93,7 +97,9 @@ async def enqueue_action(
         action.model = outcome.model
         action.validation_ok = outcome.ok
 
-    if should_auto_send(settings, conversation):
+    if decision.mode == STOP:
+        action.status = PENDING
+    elif should_auto_send(settings, conversation) and decision.allowed_autonomously:
         if delay_seconds > 0:
             action.status = SCHEDULED
             action.scheduled_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
@@ -104,6 +110,14 @@ async def enqueue_action(
         action.status = PENDING
 
     session.add(action)
+    await session.flush()
+    persist_decision(
+        session,
+        user_id=user.id,
+        conversation_id=conversation.id,
+        decision=decision,
+        action_id=action.id,
+    )
     await session.commit()
     await session.refresh(action)
     return action, True

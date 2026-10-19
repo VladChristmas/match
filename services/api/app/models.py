@@ -253,6 +253,30 @@ class AgentAction(Base):
     )
 
 
+class AgentDecision(Base):
+    __tablename__ = "agent_decisions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    action_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("agent_actions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    action: Mapped[str] = mapped_column(String(32))
+    mode: Mapped[str] = mapped_column(String(16))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    alternatives: Mapped[list] = mapped_column(JSON, default=list)
+    evidence: Mapped[list] = mapped_column(JSON, default=list)
+    escalation_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    missing: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class VisionObservation(Base):
     __tablename__ = "vision_observations"
 

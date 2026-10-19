@@ -4,6 +4,7 @@ from app.api.v1.admin import router as admin_router
 from app.api.v1.agent import router as agent_router
 from app.api.v1.analysis import router as analysis_router
 from app.api.v1.conversations import router as conversations_router
+from app.api.v1.decisions import router as decisions_router
 from app.api.v1.feedback import router as feedback_router
 from app.api.v1.health import router as health_router
 from app.api.v1.integrations import router as integrations_router
@@ -29,6 +30,7 @@ app.include_router(conversations_router)
 app.include_router(analysis_router)
 app.include_router(integrations_router)
 app.include_router(agent_router)
+app.include_router(decisions_router)
 app.include_router(privacy_router)
 app.include_router(vision_router)
 app.include_router(tokens_router)

@@ -244,6 +244,29 @@ class AgentActionRead(BaseModel):
     next_attempt_at: datetime | None
 
 
+class DecisionEvaluateRequest(BaseModel):
+    conversation_id: uuid.UUID
+    trigger_text: str | None = Field(default=None, max_length=4000)
+
+
+class AgentDecisionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    conversation_id: uuid.UUID
+    action_id: uuid.UUID | None
+    action: str
+    mode: str
+    rationale: str
+    confidence: float
+    alternatives: list[dict[str, Any]]
+    evidence: list[dict[str, Any]]
+    escalation_reason: str | None
+    missing: list[str]
+    created_at: datetime
+
+
 class VisionObservationCreate(BaseModel):
     conversation_id: uuid.UUID
     frame_base64: str = Field(min_length=1)
