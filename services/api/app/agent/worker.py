@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.agent.service import FAILED, SCHEDULED, _deliver
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import AgentAction, Conversation
+from app.models import AgentAction, Conversation, User
 
 logger = logging.getLogger("match.agent_runtime")
 
@@ -31,7 +31,10 @@ async def _deliver_scheduled(session: AsyncSession, action: AgentAction) -> None
     conversation = await session.get(Conversation, action.conversation_id)
     if conversation is None:
         raise RuntimeError("conversation not found")
-    await _deliver(session, conversation, action)
+    user = await session.get(User, conversation.user_id)
+    if user is None:
+        raise RuntimeError("user not found")
+    await _deliver(session, user, conversation, action)
     action.scheduled_at = None
     action.next_attempt_at = None
     action.error = None

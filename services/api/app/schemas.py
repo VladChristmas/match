@@ -358,3 +358,83 @@ class RelationshipTimelineRead(BaseModel):
     signals_before: list[dict[str, object]]
     signals_after: list[dict[str, object]]
     created_at: datetime
+
+
+class AutonomyBudgetBase(BaseModel):
+    max_messages_per_day: int | None = Field(default=None, ge=1)
+    active_start_hour: int | None = Field(default=None, ge=0, le=23)
+    active_end_hour: int | None = Field(default=None, ge=0, le=23)
+    allowed_conversation_ids: list[uuid.UUID] | None = Field(default=None)
+    actions_always_confirm: list[str] | None = Field(default=None)
+    auto_stop_after_errors: int | None = Field(default=None, ge=1)
+    global_paused: bool | None = Field(default=None)
+
+
+class AutonomyBudgetCreate(AutonomyBudgetBase):
+    pass
+
+
+class AutonomyBudgetUpdate(AutonomyBudgetBase):
+    pass
+
+
+class AutonomyBudgetRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    max_messages_per_day: int
+    active_start_hour: int
+    active_end_hour: int
+    allowed_conversation_ids: list[uuid.UUID]
+    actions_always_confirm: list[str]
+    auto_stop_after_errors: int
+    consecutive_errors: int
+    last_error_at: datetime | None
+    global_paused: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class AutonomyErrorLogRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    conversation_id: uuid.UUID | None
+    action_id: uuid.UUID | None
+    error_type: str
+    created_at: datetime
+
+
+class CalibrationRuleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    rule_type: str
+    condition: dict[str, object]
+    action: dict[str, object]
+    confidence: float
+    applies_count: int
+    last_applied_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CalibrationRuleUpdate(BaseModel):
+    rule_type: str | None = Field(default=None, max_length=32)
+    condition: dict[str, object] | None = Field(default=None)
+    action: dict[str, object] | None = Field(default=None)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
+class FeedbackClassifyRequest(BaseModel):
+    classification: str | None = Field(default=None, max_length=32)
+
+
+class FeedbackClassificationRead(BaseModel):
+    feedback_id: uuid.UUID
+    classification: str
+    rule_created: bool
+    rule_id: uuid.UUID | None

@@ -347,3 +347,77 @@ class RelationshipTimeline(Base):
     signals_before: Mapped[list] = mapped_column(JSON, default=list)
     signals_after: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# Адаптивная автономность и калибровка (Этап 26, ADR-0032).
+AUTONOMY_ERROR_TYPES = ("rejected", "edited", "cancelled", "blocked")
+CALIBRATION_RULE_TYPES = ("style_preference", "strategy_rule", "confidence_adjustment")
+FEEDBACK_CLASSIFICATIONS = ("factual_error", "wrong_tone", "wrong_strategy", "personal_preference")
+
+
+class AutonomyBudget(Base):
+    """Бюджет автономности пользователя (ОQ-12, Этап 26).
+
+    Пределы самостоятельной работы агента. Сервер хранит авторитетную копию;
+    клиент может кэшировать для оффлайна.
+    """
+
+    __tablename__ = "autonomy_budgets"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    max_messages_per_day: Mapped[int] = mapped_column(Integer, default=50)
+    active_start_hour: Mapped[int] = mapped_column(Integer, default=0)
+    active_end_hour: Mapped[int] = mapped_column(Integer, default=24)
+    allowed_conversation_ids: Mapped[list] = mapped_column(JSON, default=list)
+    actions_always_confirm: Mapped[list] = mapped_column(JSON, default=list)
+    auto_stop_after_errors: Mapped[int] = mapped_column(Integer, default=3)
+    consecutive_errors: Mapped[int] = mapped_column(Integer, default=0)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    global_paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class AutonomyErrorLog(Base):
+    """Журнал ошибок автономности для авто-остановки и калибровки."""
+
+    __tablename__ = "autonomy_error_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    action_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("agent_actions.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    error_type: Mapped[str] = mapped_column(String(32), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CalibrationRule(Base):
+    """Правило калибровки поведения, полученное из обратной связи пользователя."""
+
+    __tablename__ = "calibration_rules"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    rule_type: Mapped[str] = mapped_column(String(32), index=True)
+    condition: Mapped[dict] = mapped_column(JSON, default=dict)
+    action: Mapped[dict] = mapped_column(JSON, default=dict)
+    confidence: Mapped[float] = mapped_column(Float, default=0.5)
+    applies_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

@@ -150,7 +150,7 @@ async def approve(action_id: uuid.UUID, session: SessionDep, user: CurrentUser) 
             status_code=status.HTTP_409_CONFLICT,
             detail="Only pending actions can be approved",
         )
-    await approve_action(session, action)
+    await approve_action(session, user, action)
     return action
 
 
@@ -162,5 +162,5 @@ async def reject(action_id: uuid.UUID, session: SessionDep, user: CurrentUser) -
             status_code=status.HTTP_409_CONFLICT,
             detail="Only pending actions can be rejected",
         )
-    await reject_action(session, action)
+    await reject_action(session, user, action)
     return action

@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.api.v1.admin import router as admin_router
 from app.api.v1.agent import router as agent_router
 from app.api.v1.analysis import router as analysis_router
+from app.api.v1.autonomy import router as autonomy_router
 from app.api.v1.conversations import router as conversations_router
 from app.api.v1.decisions import router as decisions_router
 from app.api.v1.dynamics import router as dynamics_router
@@ -31,6 +32,7 @@ app.include_router(conversations_router)
 app.include_router(analysis_router)
 app.include_router(integrations_router)
 app.include_router(agent_router)
+app.include_router(autonomy_router)
 app.include_router(decisions_router)
 app.include_router(dynamics_router)
 app.include_router(privacy_router)
