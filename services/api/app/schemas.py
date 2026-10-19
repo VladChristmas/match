@@ -332,3 +332,29 @@ class AdminMetrics(BaseModel):
     feedback: AdminMetric
     access_tokens: AdminMetric
     settings: dict[str, str]
+
+
+class RelationshipSignalRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    conversation_id: uuid.UUID
+    dimension: str
+    value: float
+    evidence: list[dict[str, object]]
+    observed_at: datetime
+    created_at: datetime
+
+
+class RelationshipTimelineRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    conversation_id: uuid.UUID
+    event_type: str
+    description: str
+    signals_before: list[dict[str, object]]
+    signals_after: list[dict[str, object]]
+    created_at: datetime

@@ -298,3 +298,52 @@ class VisionObservation(Base):
     model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     captured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# Измерения динамики отношений (Этап 25, ADR-0031).
+RELATIONSHIP_DIMENSIONS = (
+    "reciprocity",
+    "consistency",
+    "emotional_comfort",
+    "expectation_alignment",
+    "agreement_ability",
+    "relationship_development",
+)
+
+
+class RelationshipSignal(Base):
+    """Одна точка временного ряда динамики отношений по измерению."""
+
+    __tablename__ = "relationship_signals"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    dimension: Mapped[str] = mapped_column(String(32), index=True)
+    value: Mapped[float] = mapped_column(Float)
+    evidence: Mapped[list] = mapped_column(JSON, default=list)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RelationshipTimeline(Base):
+    """Поворотный момент в развитии знакомства."""
+
+    __tablename__ = "relationship_timeline"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), index=True
+    )
+    event_type: Mapped[str] = mapped_column(String(32))
+    description: Mapped[str] = mapped_column(Text)
+    signals_before: Mapped[list] = mapped_column(JSON, default=list)
+    signals_after: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

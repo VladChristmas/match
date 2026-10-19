@@ -15,6 +15,8 @@ from app.models import (
     Message,
     ModelRun,
     RateLimitCounter,
+    RelationshipSignal,
+    RelationshipTimeline,
     RiskAssessment,
     User,
     UserFeedback,
@@ -76,6 +78,8 @@ async def export_data(session: SessionDep, user: CurrentUser) -> dict:
         "agent_settings": _dump(agent_settings),
         "agent_actions": await many(AgentAction),
         "agent_decisions": await many(AgentDecision),
+        "relationship_signals": await many(RelationshipSignal),
+        "relationship_timeline": await many(RelationshipTimeline),
         "model_runs": await many(ModelRun),
         "vision_observations": await many(VisionObservation),
         "access_tokens": [
@@ -104,6 +108,8 @@ async def deletion_request(session: SessionDep, user: CurrentUser) -> Response:
     for model in (
         AgentDecision,
         AgentAction,
+        RelationshipSignal,
+        RelationshipTimeline,
         UserFeedback,
         CompatibilityAssessment,
         RiskAssessment,
