@@ -52,7 +52,15 @@ pub fn run() {
             storage::outbox_list,
             storage::outbox_remove,
             storage::outbox_fail,
-            storage::outbox_clear
+            storage::outbox_clear,
+            storage::memory_add,
+            storage::memory_list,
+            storage::memory_get,
+            storage::memory_classify,
+            storage::memory_verify,
+            storage::memory_correct,
+            storage::memory_delete,
+            storage::memory_events
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

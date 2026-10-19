@@ -271,6 +271,7 @@
 2. Сделано: Этапы 17–22 (vision OQ-8, free LLM OQ-2, MSVC OQ-4, оффлайн-очередь, воркер
    автономности, e2e/нагрузка). Продуктовый план закрыт. Из «вне релиза» остаются реальные
    интеграции с площадками (по дизайну агент не подключается к площадке).
-3. **Этап 23 реализован (код, тесты, ADR-0029):** Decision Loop + политика действий,
-   журнал `agent_decisions`, стоп-факторы, `/agent/decisions` (`tests/test_decision.py`).
-   Далее Этап 24 Memory Lifecycle — вопросы OQ-9…OQ-12 (`open-questions.md`) остаются открытыми.
+3. **Этапы 23–24 реализованы (код, тесты, ADR-0029/ADR-0030):** Decision Loop + политика действий,
+   журнал `agent_decisions`, стоп-факторы, `/agent/decisions` (`tests/test_decision.py`); Memory Lifecycle
+   на клиенте (`memories`/`memory_events` в `match.db`, команды `memory_*`, тесты в `storage.rs`).
+   Далее Этап 25 Relationship Dynamics — вопросы OQ-9…OQ-12 (`open-questions.md`) остаются открытыми.

@@ -270,3 +270,43 @@ export interface AccessTokenIssued {
   label: string;
   created_at: string;
 }
+
+export type MemoryKind = "fact" | "preference" | "hypothesis" | "temporary_state" | "agreement";
+export type MemoryStatus = "received" | "classified" | "verified" | "used" | "revised";
+
+export interface Memory {
+  id: UUID;
+  user_id: UUID;
+  conversation_id: UUID | null;
+  kind: MemoryKind;
+  status: MemoryStatus;
+  content: string;
+  source: string;
+  confidence: number;
+  valid_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MemoryCreate {
+  kind: MemoryKind;
+  content: string;
+  source?: string;
+  confidence?: number;
+  valid_until?: string | null;
+  conversation_id?: UUID | null;
+}
+
+export interface MemoryUpdate {
+  content?: string | null;
+  confidence?: number | null;
+}
+
+export interface MemoryEvent {
+  id: UUID;
+  memory_id: UUID;
+  event_type: string;
+  actor: string;
+  detail: string | null;
+  created_at: string;
+}
