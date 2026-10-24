@@ -33,6 +33,10 @@ class Settings(BaseSettings):
 
     auth_allow_legacy_tokens: bool = True
 
+    log_level: str = "INFO"
+
+    cors_origins: str = ""
+
     admin_token_refs: str = ""
 
     agent_max_attempts: int = 5
@@ -43,6 +47,15 @@ class Settings(BaseSettings):
     def admin_refs(self) -> set[str]:
         """`token_ref`, получающие роль `admin` (админ-кабинет, OQ-3)."""
         return {item.strip() for item in self.admin_token_refs.split(",") if item.strip()}
+
+    @property
+    def cors_allow_origins(self) -> list[str]:
+        """Origins для CORS. Явный список работает в любой среде; пусто — `*` в
+        development (Tauri-dev на динамическом origin) и запрет cross-origin в production."""
+        origins = [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+        if origins:
+            return origins
+        return ["*"] if self.environment == "development" else []
 
     vision_provider: str = "ollama"
     vision_fallback_providers: str = ""
