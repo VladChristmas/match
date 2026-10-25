@@ -64,7 +64,29 @@ services\api\.venv\Scripts\python.exe services\agent-runtime\main.py
 - `MATCH_LLM_TIMEOUT_SECONDS`, `MATCH_LLM_MAX_TOKENS`, `MATCH_LLM_TEMPERATURE`
 - `MATCH_RATE_LIMIT_BACKEND` ("memory" или "db", см. ADR-0028)
 
-## 8. Проверки перед выкладкой
+## 8. Сборка установщика и обновление
+Релизная сборка (долгая, MSVC-окружение обязательно — через `dev-env.ps1`):
+```powershell
+. .\scripts\dev-env.ps1
+cd apps\desktop
+pnpm tauri build
+```
+Артефакты: `apps\desktop\src-tauri\target\release\bundle\nsis\MATCH_0.1.0_x64-setup.exe`
+и `...\msi\MATCH_0.1.0_x64_en-US.msi` (identifier `com.match.desktop`, версия из `tauri.conf.json`).
+
+Обновление:
+1. Остановить приложение (и воркер `services/agent-runtime`).
+2. Сервер: `alembic upgrade head` до запуска новой версии.
+3. Запустить установщик поверх предыдущей версии. Локальная база `match.db`
+   в каталоге данных приложения сохраняется (схема версионируется, текущая — v4);
+   настройки (адрес API, токен) и оффлайн-очередь сохраняются.
+4. После обновления проверить `GET /health/ready` и первый запуск клиента.
+
+Удаление приложения: штатное удаление через Windows; локальная `match.db`
+удаляется вместе с каталогом данных приложения (удаление серверных данных —
+отдельно, `/api/v1/privacy/deletion-request` или экран «Приватность»).
+
+## 9. Проверки перед выкладкой
 ```powershell
 # backend
 cd services\api; .\.venv\Scripts\python.exe -m ruff check .; .\.venv\Scripts\python.exe -m pytest -q
@@ -78,7 +100,7 @@ services\api\.venv\Scripts\python.exe scripts\loadtest.py --base-url http://loca
     --requests 500 --concurrency 20
 ```
 
-## 9. Эксплуатация
+## 10. Эксплуатация
 - Пауза авто-отправки: `POST /api/v1/agent/pause`; возобновление — `/resume`.
 - Очередь на подтверждение: `GET /api/v1/agent/actions?status=pending`; `approve`/`reject`.
 - Отложенная доставка: `POST /api/v1/agent/actions` с `schedule_in_seconds`; статус `scheduled` обрабатывает воркер.

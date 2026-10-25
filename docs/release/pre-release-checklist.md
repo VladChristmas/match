@@ -33,4 +33,4 @@
 ## Качество
 - [x] `ruff check .` — чисто; `pytest -q` — зелёный (164 теста).
 - [x] `pnpm build` (клиент) — зелёный (tsc + vite); `cargo clippy -D warnings` и `cargo test` (16) — зелёные.
-- [ ] CI зелёный (backend зелён; desktop-CI исправлен в этапе 30 — проверить статус после пуша).
+- [x] CI зелёный (2026-10-25, прогон `7972f16`: backend, desktop-web, desktop-tauri, scaffold, database с alembic up/down и pg_smoke — все success).
