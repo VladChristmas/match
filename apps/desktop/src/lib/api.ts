@@ -4,20 +4,31 @@ import type {
   AdminMetrics,
   AgentAction,
   AgentActionCreate,
+  AgentDecision,
   AgentSettings,
   AgentSettingsUpdate,
+  AutonomyBudget,
+  AutonomyBudgetUpdate,
+  AutonomyErrorLog,
+  CalibrationRule,
   CommunicationProfile,
   CommunicationProfileUpdate,
   CompatibilityAssessment,
   CompatibilityRequest,
   Conversation,
   ConversationCreate,
+  DecisionEvaluateRequest,
+  DynamicsChange,
   Draft,
   Feedback,
+  FeedbackClassification,
   FeedbackCreate,
   HealthResponse,
   Message,
   MessageImport,
+  PrivacyExport,
+  RelationshipSignal,
+  RelationshipTimelineEntry,
   RiskAssessment,
   RiskRequest,
   UserProfile,
@@ -51,6 +62,9 @@ function safeJson(text: string): unknown {
   }
 }
 
+/** Общий таймаут HTTP-запроса: интерфейс не должен «висеть» на недоступном API. */
+const API_TIMEOUT_MS = 20000;
+
 export class ApiClient {
   private readonly baseUrl: string;
   readonly token: string;
@@ -70,11 +84,19 @@ export class ApiClient {
       headers.set("Authorization", `Bearer ${this.token}`);
     }
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
     let response: Response;
     try {
-      response = await fetch(`${this.baseUrl}${path}`, { ...init, headers });
+      response = await fetch(`${this.baseUrl}${path}`, {
+        ...init,
+        headers,
+        signal: controller.signal,
+      });
     } catch {
       throw new ApiError(0, `Не удалось подключиться к API (${this.baseUrl})`);
+    } finally {
+      clearTimeout(timer);
     }
 
     const text = await response.text();
@@ -288,6 +310,91 @@ export class ApiClient {
 
   adminMetrics(): Promise<AdminMetrics> {
     return this.request<AdminMetrics>("/api/v1/admin/metrics");
+  }
+
+  // --- Decision Loop (прозрачность решений агента) ---
+
+  listDecisions(conversationId?: string, limit = 50): Promise<AgentDecision[]> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (conversationId) query.set("conversation_id", conversationId);
+    return this.request<AgentDecision[]>(`/api/v1/agent/decisions?${query.toString()}`);
+  }
+
+  evaluateDecision(payload: DecisionEvaluateRequest): Promise<AgentDecision> {
+    return this.request<AgentDecision>("/api/v1/agent/decisions/evaluate", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // --- Adaptive Autonomy: бюджет, ошибки, калибровка ---
+
+  getAutonomyBudget(): Promise<AutonomyBudget> {
+    return this.request<AutonomyBudget>("/api/v1/autonomy/budget");
+  }
+
+  updateAutonomyBudget(payload: AutonomyBudgetUpdate): Promise<AutonomyBudget> {
+    return this.request<AutonomyBudget>("/api/v1/autonomy/budget", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  listAutonomyErrors(limit = 50): Promise<AutonomyErrorLog[]> {
+    return this.request<AutonomyErrorLog[]>(`/api/v1/autonomy/errors?limit=${limit}`);
+  }
+
+  resetAutonomyErrors(): Promise<AutonomyBudget> {
+    return this.request<AutonomyBudget>("/api/v1/autonomy/reset-errors", { method: "POST" });
+  }
+
+  listCalibrationRules(limit = 50): Promise<CalibrationRule[]> {
+    return this.request<CalibrationRule[]>(`/api/v1/autonomy/calibration-rules?limit=${limit}`);
+  }
+
+  classifyFeedback(id: string, classification?: string): Promise<FeedbackClassification> {
+    return this.request<FeedbackClassification>(`/api/v1/autonomy/feedback/${id}/classify`, {
+      method: "POST",
+      body: JSON.stringify({ classification: classification ?? null }),
+    });
+  }
+
+  // --- Relationship Dynamics ---
+
+  listDynamicsSignals(conversationId?: string, dimension?: string): Promise<RelationshipSignal[]> {
+    const query = new URLSearchParams();
+    if (conversationId) query.set("conversation_id", conversationId);
+    if (dimension) query.set("dimension", dimension);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return this.request<RelationshipSignal[]>(`/api/v1/dynamics/signals${suffix}`);
+  }
+
+  computeDynamicsSignals(conversationId: string): Promise<RelationshipSignal[]> {
+    return this.request<RelationshipSignal[]>(
+      `/api/v1/dynamics/signals/compute?conversation_id=${conversationId}`,
+      { method: "POST" },
+    );
+  }
+
+  listDynamicsTimeline(conversationId?: string): Promise<RelationshipTimelineEntry[]> {
+    const suffix = conversationId ? `?conversation_id=${conversationId}` : "";
+    return this.request<RelationshipTimelineEntry[]>(`/api/v1/dynamics/timeline${suffix}`);
+  }
+
+  compareDynamicsPeriods(conversationId: string, days = 30): Promise<DynamicsChange[]> {
+    return this.request<DynamicsChange[]>(
+      `/api/v1/dynamics/compare?conversation_id=${conversationId}&days=${days}`,
+    );
+  }
+
+  // --- Privacy: экспорт и удаление ---
+
+  exportPrivacy(): Promise<PrivacyExport> {
+    return this.request<PrivacyExport>("/api/v1/privacy/export");
+  }
+
+  requestDeletion(): Promise<void> {
+    return this.request<void>("/api/v1/privacy/deletion-request", { method: "POST" });
   }
 }
 

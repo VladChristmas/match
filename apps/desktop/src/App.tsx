@@ -4,8 +4,13 @@ import { AppProvider, useApp } from "./context/AppContext";
 import { AdminView } from "./views/AdminView";
 import { AnalysisView } from "./views/AnalysisView";
 import { AutonomyView } from "./views/AutonomyView";
+import { Banner, Button } from "./components/ui";
+import { DecisionsView } from "./views/DecisionsView";
+import { DynamicsView } from "./views/DynamicsView";
 import { JournalView } from "./views/JournalView";
 import { MatchesView } from "./views/MatchesView";
+import { MemoryView } from "./views/MemoryView";
+import { PrivacyView } from "./views/PrivacyView";
 import { ProfileView } from "./views/ProfileView";
 import { SettingsView } from "./views/SettingsView";
 import { VisionView } from "./views/VisionView";
@@ -16,9 +21,13 @@ type Tab =
   | "matches"
   | "analysis"
   | "autonomy"
+  | "decisions"
+  | "dynamics"
+  | "memory"
   | "vision"
   | "journal"
   | "admin"
+  | "privacy"
   | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
@@ -26,9 +35,13 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "matches", label: "Знакомства" },
   { id: "analysis", label: "Анализ" },
   { id: "autonomy", label: "Автономность" },
+  { id: "decisions", label: "Решения" },
+  { id: "dynamics", label: "Динамика" },
+  { id: "memory", label: "Память" },
   { id: "vision", label: "Зрение" },
   { id: "journal", label: "Журнал" },
   { id: "admin", label: "Админ" },
+  { id: "privacy", label: "Приватность" },
   { id: "settings", label: "Настройки" },
 ];
 
@@ -72,14 +85,26 @@ function Shell() {
         <header className="topbar">
           <h1>{TABS.find((tabItem) => tabItem.id === tab)?.label}</h1>
         </header>
+        {!settings.token ? (
+          <Banner kind="warn">
+            Токен доступа не задан — введённые данные не сохранятся. Укажите адрес API и токен в{" "}
+            <Button variant="primary" onClick={() => setTab("settings")}>
+              настройках
+            </Button>
+          </Banner>
+        ) : null}
         <div className="view">
           {tab === "profile" ? <ProfileView /> : null}
           {tab === "matches" ? <MatchesView /> : null}
           {tab === "analysis" ? <AnalysisView /> : null}
           {tab === "autonomy" ? <AutonomyView /> : null}
+          {tab === "decisions" ? <DecisionsView /> : null}
+          {tab === "dynamics" ? <DynamicsView /> : null}
+          {tab === "memory" ? <MemoryView /> : null}
           {tab === "vision" ? <VisionView /> : null}
           {tab === "journal" ? <JournalView /> : null}
           {tab === "admin" ? <AdminView /> : null}
+          {tab === "privacy" ? <PrivacyView /> : null}
           {tab === "settings" ? <SettingsView /> : null}
         </div>
       </main>

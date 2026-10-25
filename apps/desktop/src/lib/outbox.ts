@@ -27,7 +27,12 @@ export interface FlushResult {
   sent: number;
   dropped: number;
   remaining: number;
+  /** Причины отброса/остановки для журнала и показа пользователю. */
+  reasons: { id: string; label: string; detail: string }[];
 }
+
+/** После столько неудачных попыток запрос покидает очередь (не повторяется вечно). */
+export const MAX_OUTBOX_ATTEMPTS = 10;
 
 export function outboxSupported(): boolean {
   return storageSupported();
@@ -82,9 +87,11 @@ export async function clearOutbox(): Promise<void> {
 /**
  * Повторяет запросы очереди. Успешные и «необратимые» (4xx) удаляются,
  * сетевые/серверные (5xx, status 0) остаются с увеличенным счётчиком попыток.
+ * После MAX_OUTBOX_ATTEMPTS запрос покидает очередь с записанной причиной —
+ * очередь не повторяет один и тот же запрос бесконечно.
  */
 export async function flushOutbox(api: ApiClient): Promise<FlushResult> {
-  const result: FlushResult = { sent: 0, dropped: 0, remaining: 0 };
+  const result: FlushResult = { sent: 0, dropped: 0, remaining: 0, reasons: [] };
   const items = await listOutbox();
   for (const item of items) {
     try {
@@ -96,12 +103,24 @@ export async function flushOutbox(api: ApiClient): Promise<FlushResult> {
       await removeOutbox(item.id);
       result.sent += 1;
     } catch (error) {
+      const detail = errorMessage(error);
       if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
         await removeOutbox(item.id);
         result.dropped += 1;
+        result.reasons.push({ id: item.id, label: item.label, detail });
       } else {
-        await failOutbox(item.id, errorMessage(error));
-        result.remaining += 1;
+        await failOutbox(item.id, detail);
+        if ((item.attempts || 0) + 1 >= MAX_OUTBOX_ATTEMPTS) {
+          await removeOutbox(item.id);
+          result.dropped += 1;
+          result.reasons.push({
+            id: item.id,
+            label: item.label,
+            detail: `отброшено после ${MAX_OUTBOX_ATTEMPTS} попыток: ${detail}`,
+          });
+        } else {
+          result.remaining += 1;
+        }
       }
     }
   }

@@ -341,3 +341,111 @@ export interface LocalMessage {
   created_at: string;
   processed_at: string | null;
 }
+
+export interface AgentDecision {
+  id: UUID;
+  user_id: UUID;
+  conversation_id: UUID;
+  action_id: UUID | null;
+  action: string;
+  mode: string;
+  rationale: string;
+  confidence: number;
+  alternatives: Record<string, unknown>[];
+  evidence: Record<string, unknown>[];
+  escalation_reason: string | null;
+  missing: string[];
+  created_at: string;
+}
+
+export interface DecisionEvaluateRequest {
+  conversation_id: UUID;
+  trigger_text?: string | null;
+}
+
+export interface AutonomyBudget {
+  id: UUID;
+  user_id: UUID;
+  max_messages_per_day: number;
+  active_start_hour: number;
+  active_end_hour: number;
+  allowed_conversation_ids: string[];
+  actions_always_confirm: string[];
+  auto_stop_after_errors: number;
+  consecutive_errors: number;
+  last_error_at: string | null;
+  global_paused: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutonomyBudgetUpdate {
+  max_messages_per_day?: number;
+  active_start_hour?: number;
+  active_end_hour?: number;
+  allowed_conversation_ids?: string[];
+  actions_always_confirm?: string[];
+  auto_stop_after_errors?: number;
+  global_paused?: boolean;
+}
+
+export interface AutonomyErrorLog {
+  id: UUID;
+  user_id: UUID;
+  conversation_id: UUID | null;
+  action_id: UUID | null;
+  error_type: string;
+  created_at: string;
+}
+
+export interface CalibrationRule {
+  id: UUID;
+  user_id: UUID;
+  rule_type: string;
+  condition: Record<string, unknown>;
+  action: Record<string, unknown>;
+  confidence: number;
+  applies_count: number;
+  last_applied_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedbackClassification {
+  feedback_id: UUID;
+  classification: string;
+  rule_created: boolean;
+}
+
+export interface RelationshipSignal {
+  id: UUID;
+  user_id: UUID;
+  conversation_id: UUID;
+  dimension: string;
+  value: number;
+  evidence: Record<string, unknown>[];
+  observed_at: string;
+  created_at: string;
+}
+
+export interface RelationshipTimelineEntry {
+  id: UUID;
+  user_id: UUID;
+  conversation_id: UUID;
+  event_type: string;
+  description: string;
+  signals_before: Record<string, unknown>[];
+  signals_after: Record<string, unknown>[];
+  created_at: string;
+}
+
+export interface DynamicsChange {
+  dimension?: string;
+  current?: number;
+  previous?: number;
+  delta?: number;
+  significant?: boolean;
+  [key: string]: unknown;
+}
+
+export type PrivacyExport = Record<string, unknown>;

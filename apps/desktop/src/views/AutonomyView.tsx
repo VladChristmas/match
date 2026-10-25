@@ -11,6 +11,9 @@ export function AutonomyView() {
   const agentSettings = useAsyncData(() => api.getAgentSettings(), [api]);
   const conversations = useAsyncData(() => api.listConversations(), [api]);
   const pending = useAsyncData(() => api.listActions("pending"), [api]);
+  const budget = useAsyncData(() => api.getAutonomyBudget(), [api]);
+  const errors = useAsyncData(() => api.listAutonomyErrors(), [api]);
+  const rules = useAsyncData(() => api.listCalibrationRules(), [api]);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +69,39 @@ export function AutonomyView() {
     }
   }
 
+  async function toggleGlobalPause() {
+    setBusy(true);
+    setError(null);
+    try {
+      const next = !(budget.data?.global_paused ?? false);
+      await api.updateAutonomyBudget({ global_paused: next });
+      logJournal(
+        "autonomy",
+        next ? "Глобальная остановка включена" : "Глобальная остановка снята",
+      );
+      budget.reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resetErrors() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.resetAutonomyErrors();
+      logJournal("autonomy", "Счётчик ошибок автономности сброшен");
+      budget.reload();
+      errors.reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       {error ? <Banner kind="error">{error}</Banner> : null}
@@ -91,6 +127,72 @@ export function AutonomyView() {
             </span>
           </div>
         ) : null}
+      </Section>
+
+      <Section
+        title="Бюджет автономности"
+        description="Лимиты самостоятельной работы агента. Глобальная остановка блокирует любую доставку, включая одобренные вручную действия."
+        actions={
+          <Button variant={budget.data?.global_paused ? "primary" : "danger"} onClick={() => void toggleGlobalPause()} disabled={busy}>
+            {budget.data?.global_paused ? "Снять глобальную остановку" : "Глобальная остановка"}
+          </Button>
+        }
+      >
+        {budget.loading ? <Loader /> : null}
+        {budget.error ? <Banner kind="error">{budget.error}</Banner> : null}
+        {budget.data ? (
+          <div className="row wrap">
+            <Badge tone={budget.data.global_paused ? "error" : "ok"}>
+              {budget.data.global_paused ? "всё остановлено" : "работает"}
+            </Badge>
+            <span className="muted">лимит сообщений/день: {budget.data.max_messages_per_day}</span>
+            <span className="muted">
+              активные часы: {budget.data.active_start_hour}:00–{budget.data.active_end_hour}:00
+            </span>
+            <span className="muted">
+              ошибок подряд: {budget.data.consecutive_errors}/{budget.data.auto_stop_after_errors}
+            </span>
+            <Button onClick={() => void resetErrors()} disabled={busy}>
+              Сбросить счётчик ошибок
+            </Button>
+          </div>
+        ) : null}
+      </Section>
+
+      <Section
+        title="Журнал ошибок автономности"
+        description="Отклонения и сбои доставки — из них считается авто-остановка."
+        actions={<Button onClick={() => errors.reload()}>Обновить</Button>}
+      >
+        {errors.error ? <Banner kind="error">{errors.error}</Banner> : null}
+        {errors.data && errors.data.length === 0 ? <EmptyState>Ошибок нет.</EmptyState> : null}
+        <ul className="plain-list">
+          {errors.data?.map((entry) => (
+            <li key={entry.id} className="row">
+              <Badge tone="warn">{entry.error_type}</Badge>
+              <span className="muted">{entry.created_at.slice(0, 16).replace("T", " ")}</span>
+              {entry.conversation_id ? (
+                <span className="muted">диалог {entry.conversation_id.slice(0, 8)}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      <Section title="Правила калибровки" description="Закономерности из вашей обратной связи; применяются при подборе действий.">
+        {rules.error ? <Banner kind="error">{rules.error}</Banner> : null}
+        {rules.data && rules.data.length === 0 ? (
+          <EmptyState>Правил пока нет — они появятся после повторяющейся обратной связи.</EmptyState>
+        ) : null}
+        <ul className="plain-list">
+          {rules.data?.map((rule) => (
+            <li key={rule.id} className="row">
+              <Badge tone="neutral">{rule.rule_type}</Badge>
+              <span className="muted">уверенность {rule.confidence.toFixed(2)}</span>
+              <span className="muted">применений: {rule.applies_count}</span>
+            </li>
+          ))}
+        </ul>
       </Section>
 
       <Section

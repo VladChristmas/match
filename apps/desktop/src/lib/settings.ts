@@ -19,6 +19,15 @@ export interface Settings {
   visionSourceLabel: string;
   visionTargetHandle: number | null;
   journal: JournalEntry[];
+  /** Стабильный локальный идентификатор пользователя для памяти в match.db. */
+  localUserId: string;
+}
+
+function randomLocalUserId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +38,7 @@ export const DEFAULT_SETTINGS: Settings = {
   visionSourceLabel: "window",
   visionTargetHandle: null,
   journal: [],
+  localUserId: randomLocalUserId(),
 };
 
 const STORAGE_KEY = "match.settings.v1";
@@ -64,20 +74,29 @@ export function isTauri(): boolean {
 
 export async function loadSettings(): Promise<Settings> {
   const snapshot = await loadState();
+  let merged: Settings;
   if (snapshot) {
-    return {
+    merged = {
       ...DEFAULT_SETTINGS,
       ...(snapshot.settings as Partial<Settings>),
       journal: snapshot.journal as JournalEntry[],
     };
+  } else {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      merged = raw
+        ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) }
+        : { ...DEFAULT_SETTINGS };
+    } catch {
+      merged = { ...DEFAULT_SETTINGS };
+    }
   }
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
+  // Локальный id должен быть стабилен между запусками: сохраняем при первом появлении.
+  if (!merged.localUserId) {
+    merged = { ...merged, localUserId: randomLocalUserId() };
+    void saveSettings(merged).catch(() => undefined);
   }
+  return merged;
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

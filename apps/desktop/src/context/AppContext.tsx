@@ -121,11 +121,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const syncOutbox = useCallback(async (): Promise<FlushResult> => {
-    if (!outboxSupported()) return { sent: 0, dropped: 0, remaining: 0 };
+    if (!outboxSupported()) return { sent: 0, dropped: 0, remaining: 0, reasons: [] };
     const result = await flushOutbox(api);
     await refreshOutbox();
     if (result.sent > 0) {
       logJournal("outbox", `Оффлайн-очередь синхронизирована: ${result.sent}`);
+    }
+    for (const reason of result.reasons) {
+      logJournal("outbox", `Запрос отброшен: ${reason.label}`, reason.detail);
     }
     return result;
   }, [api, logJournal, refreshOutbox]);
