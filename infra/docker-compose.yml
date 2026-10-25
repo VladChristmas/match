@@ -21,6 +21,16 @@ services:
     environment:
       MATCH_ENVIRONMENT: docker
       MATCH_DATABASE_URL: postgresql+asyncpg://match:match@db:5432/match
+      # Прод-настройки по умолчанию (ADR-0034 / pre-release checklist):
+      # легаси-автопровижининг пользователей выключен — доступ только по выпущенным
+      # токенам; лимитер включён на db-бэкенде (работает при нескольких инстансах);
+      # CORS задан явно (пусто в production = запрет cross-origin), включая origin'ы
+      # Tauri-клиента и локальной разработки.
+      MATCH_AUTH_ALLOW_LEGACY_TOKENS: "false"
+      MATCH_RATE_LIMIT_PER_MINUTE: "60"
+      MATCH_RATE_LIMIT_BACKEND: db
+      MATCH_CORS_ORIGINS: "http://tauri.localhost,https://tauri.localhost,http://localhost:1420"
+      MATCH_LOG_LEVEL: INFO
     depends_on:
       db:
         condition: service_healthy

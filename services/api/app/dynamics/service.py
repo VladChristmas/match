@@ -56,6 +56,21 @@ def _round2(value: float) -> float:
     return round(max(0.0, min(1.0, value)), 2)
 
 
+def _as_utc(value: datetime | None) -> datetime | None:
+    """Приводит момент к offset-aware UTC.
+
+    PostgreSQL (`timestamptz`) возвращает aware-даты, SQLite — наивные.
+    Без нормализации сравнение окна с датой сообщения падает на PostgreSQL
+    (`TypeError: can't compare offset-naive and offset-aware datetimes`),
+    поэтому каждая дата приводится к UTC перед сравнениями в Python.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _reciprocity_from_messages(messages: list[Message]) -> float:
     inbound = sum(1 for m in messages if m.direction == "inbound")
     outbound = sum(1 for m in messages if m.direction == "outbound")
@@ -72,8 +87,8 @@ async def compute_signals(
     now: datetime | None = None,
 ) -> list[RelationshipSignal]:
     """Вычисляет сигналы по всем измерениям для разговора на момент `now`."""
-    moment = now or datetime.now(UTC)
-    window_start = (moment - timedelta(days=SIGNAL_WINDOW_DAYS)).replace(tzinfo=None)
+    moment = _as_utc(now) or datetime.now(UTC)
+    window_start = moment - timedelta(days=SIGNAL_WINDOW_DAYS)
 
     messages = list(
         await session.scalars(
@@ -82,7 +97,9 @@ async def compute_signals(
             .order_by(Message.created_at.asc())
         )
     )
-    window_messages = [m for m in messages if m.created_at and m.created_at >= window_start]
+    window_messages = [
+        m for m in messages if (_as_utc(m.created_at) or window_start) >= window_start
+    ]
 
     profile = await session.scalar(select(UserProfile).where(UserProfile.user_id == user_id))
     list(profile.relationship_goals) if profile else []

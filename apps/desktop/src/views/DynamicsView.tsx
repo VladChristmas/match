@@ -138,11 +138,11 @@ export function DynamicsView() {
                   <span className="list-title">
                     {dimensionLabel(String(change.dimension ?? "—"))}
                   </span>
-                  <Badge tone={change.significant ? "warn" : "neutral"}>
+                  <Badge tone={change.direction === "improved" ? "ok" : "warn"}>
                     Δ {Number(change.delta ?? 0).toFixed(2)}
                   </Badge>
                   <span className="muted">
-                    {Number(change.previous ?? 0).toFixed(2)} → {Number(change.current ?? 0).toFixed(2)}
+                    {Number(change.before ?? 0).toFixed(2)} → {Number(change.after ?? 0).toFixed(2)}
                   </span>
                 </li>
               ))}

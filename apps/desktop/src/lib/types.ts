@@ -441,10 +441,10 @@ export interface RelationshipTimelineEntry {
 
 export interface DynamicsChange {
   dimension?: string;
-  current?: number;
-  previous?: number;
+  before?: number;
+  after?: number;
   delta?: number;
-  significant?: boolean;
+  direction?: string;
   [key: string]: unknown;
 }
 

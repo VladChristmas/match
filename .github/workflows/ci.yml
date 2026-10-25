@@ -38,6 +38,54 @@ jobs:
       - name: Tests
         run: pytest -q
 
+  db-migrations:
+    name: database (alembic up/down)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: match
+          POSTGRES_PASSWORD: match
+          POSTGRES_DB: match
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Migrate up
+        env:
+          MATCH_DATABASE_URL: postgresql+asyncpg://match:match@localhost:5432/match
+        run: alembic upgrade head
+      - name: Migrate down and up again
+        env:
+          MATCH_DATABASE_URL: postgresql+asyncpg://match:match@localhost:5432/match
+        run: alembic downgrade base && alembic upgrade head
+      - name: Show schema
+        env:
+          MATCH_DATABASE_URL: postgresql+asyncpg://match:match@localhost:5432/match
+        run: alembic current
+      # Тесты идут на in-memory SQLite; этот smoke гоняет рискованные пути
+      # (dynamics, risk, compare) на реальном PostgreSQL — наивные/aware-даты,
+      # типы колонок, JSON. Регрессия этапа 30: 500 на PostgreSQL при зелёных тестах.
+      - name: PostgreSQL smoke (aware/naive datetimes, dynamics)
+        env:
+          MATCH_DATABASE_URL: postgresql+asyncpg://match:match@localhost:5432/match
+          CI: "true"
+        run: python scripts/pg_smoke.py
+
   desktop-web:
     name: desktop (web build)
     runs-on: ubuntu-latest
@@ -46,7 +94,11 @@ jobs:
         working-directory: apps/desktop
     steps:
       - uses: actions/checkout@v4
+      # Явная версия: pnpm/action-setup@v4 ищет packageManager только в корневом
+      # package.json, которого в репозитории нет (поле — в apps/desktop).
       - uses: pnpm/action-setup@v4
+        with:
+          version: "12.14.0"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -66,6 +118,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: "12.14.0"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

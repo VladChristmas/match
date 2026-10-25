@@ -190,3 +190,20 @@ async def test_detect_no_change_below_threshold():
     current = [type("S", (), {"dimension": "reciprocity", "value": 0.35})()]
     changes = detect_significant_change(previous, current)
     assert changes == []
+
+
+def test_as_utc_normalizes_naive_and_aware():
+    """Naive/aware-даты: PostgreSQL отдаёт aware, SQLite — naive; окно сравнимо в обоих."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.dynamics.service import _as_utc
+
+    naive = datetime(2026, 10, 25, 12, 0, 0)
+    aware = datetime(2026, 10, 25, 15, 0, 0, tzinfo=UTC)
+    assert _as_utc(naive) == naive.replace(tzinfo=UTC)
+    assert _as_utc(aware) == aware
+    assert _as_utc(aware).tzinfo is not None
+    assert _as_utc(None) is None
+    # Наивная дата из SQLite сравнивается с aware-окном (регрессия PG: TypeError).
+    window_start = aware - timedelta(days=90)
+    assert _as_utc(naive) >= window_start

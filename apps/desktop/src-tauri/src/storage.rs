@@ -781,20 +781,28 @@ pub fn memory_correct(
     get_memory(&conn, &id, &user_id)
 }
 
-/// Удаляет воспоминание пользователя (события каскадно удаляются).
+/// Удаляет воспоминание пользователя вместе с его событиями (одна транзакция).
 #[tauri::command]
 pub fn memory_delete(app: AppHandle, id: String, user_id: String) -> Result<bool, String> {
-    let conn = open(&app)?;
+    let mut conn = open(&app)?;
     let memory = get_memory(&conn, &id, &user_id)?;
     if memory.is_none() {
         return Ok(false);
     }
-    conn.execute(
-        "DELETE FROM memories WHERE id = ?1 AND user_id = ?2",
-        params![id, user_id],
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let rows = tx
+        .execute(
+            "DELETE FROM memories WHERE id = ?1 AND user_id = ?2",
+            params![id, user_id],
+        )
+        .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM memory_events WHERE memory_id = ?1",
+        params![id],
     )
     .map_err(|e| e.to_string())?;
-    Ok(true)
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(rows > 0)
 }
 
 /// Возвращает историю событий воспоминания.
@@ -1244,6 +1252,11 @@ mod tests {
                 params![id, user_id],
             )
             .map_err(|e| e.to_string())?;
+        conn.execute(
+            "DELETE FROM memory_events WHERE memory_id = ?1",
+            params![id],
+        )
+        .map_err(|e| e.to_string())?;
         Ok(rows > 0)
     }
 
@@ -1316,11 +1329,33 @@ mod tests {
         let conn = memory();
         let item = memory_item(1);
         insert_memory(&conn, &item).expect("insert");
+        // событие жизненного цикла создаётся при классификации
+        db_classify_memory(
+            &conn,
+            "mem-1",
+            "user-1",
+            "preference",
+            "2026-10-18T12:01:00Z",
+            "2026-10-18T12:01:00Z",
+        )
+        .expect("classify");
+        assert!(
+            !load_memory_events(&conn, "mem-1")
+                .expect("events")
+                .is_empty()
+        );
+
         assert!(db_delete_memory(&conn, "mem-1", "user-1").expect("delete"));
         assert!(
             get_memory(&conn, "mem-1", "user-1")
                 .expect("get after delete")
                 .is_none()
+        );
+        // события удалённого воспоминания не остаются сиротами
+        assert!(
+            load_memory_events(&conn, "mem-1")
+                .expect("events after delete")
+                .is_empty()
         );
         assert!(!db_delete_memory(&conn, "mem-1", "user-1").expect("delete again"));
         assert!(!db_delete_memory(&conn, "mem-1", "user-2").expect("delete foreign"));

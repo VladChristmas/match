@@ -1,6 +1,6 @@
 # State Auto-Save
 
-## Last Updated: 2026-10-18 (MATCH: Этапы 0–16 выполнены; миграции 0001–0011)
+## Last Updated: 2026-10-25 (MATCH: Этапы 0–29 выполнены; миграции 0001–0015)
 
 ### Current Task: MATCH — Этапы 0–16 пройдены: план реализации выполнен полностью. Дальше — OQ-2/OQ-4/OQ-8 (выбор провайдеров/моделей и MSVC).
 
@@ -302,6 +302,26 @@
 - Первый запуск: баннер о незаданном токене со ссылкой в настройки; память
   использует стабильный `localUserId` в настройках (локально, OQ-10).
 - Проверка: `pnpm build` (tsc) зелёный; серверные тесты не менялись (161).
+
+### Этап 30 — сделано (боевой PostgreSQL, CI, прод-настройки, ADR-0036)
+- Живая проверка нашла настоящий дефект: `compute_signals` сравнивал наивную
+  границу окна с aware-датой сообщения — на PostgreSQL `/dynamics/signals/compute`
+  отвечал 500 (на SQLite-тестах зелёно). Добавлена нормализация `_as_utc` +
+  юнит-тест; `scripts/pg_smoke.py` прогоняет dynamics/risk/compare на боевой БД
+  (шаг CI job `db-migrations`).
+- CI: desktop-job'ы падали с первого релиза на `pnpm/action-setup@v4` (ищет
+  packageManager только в корневом package.json) — задана явная версия 12.14.0;
+  добавлен job `db-migrations` (PostgreSQL + alembic up/down + pg_smoke).
+- Compose (прод-дефолты): `MATCH_AUTH_ALLOW_LEGACY_TOKENS=false`,
+  `MATCH_RATE_LIMIT_PER_MINUTE=60`, `MATCH_RATE_LIMIT_BACKEND=db`,
+  явные CORS-origin'ы, уровень логов.
+- `memory_delete` удаляет события воспоминания в одной транзакции.
+- Документы синхронизированы: ADR-0030 (память клиентская), OQ-10 закрыт,
+  target-architecture, roadmap/statem/README, apps/README; чек-лист предрелиза —
+  отметки только по проверенному.
+- Проверки: миграции up/down на 5433 (0015, 21 таблица), сквозной smoke через
+  HTTP (profile→conversation→import→draft→action→decision→dynamics→budget→export
+  →pause-block→deletion), 164 pytest, ruff, pnpm build, cargo 16 тестов.
 
 ### Git (локально)
 - Коммиты: … e4dfada+f66efa6 (stage13), b73e77f+96787a8 (stage14), 94f2056+b5d1dcf (stage15). Запушено до b5d1dcf.
