@@ -51,9 +51,7 @@ async def test_conversation_crud_contract(client):
     assert isinstance(conversation["autonomy_mode"], str)
     assert _is_iso8601(conversation["created_at"])
 
-    fetched = await client.get(
-        f"/api/v1/conversations/{conversation['id']}", headers=TOKEN_HEADER
-    )
+    fetched = await client.get(f"/api/v1/conversations/{conversation['id']}", headers=TOKEN_HEADER)
     assert fetched.status_code == 200
     assert fetched.json()["id"] == conversation["id"]
 
@@ -128,9 +126,7 @@ async def test_integrations_and_agent_settings_contract(client):
 
 async def test_not_found_error_contract(client):
     missing = str(uuid.uuid4())
-    response = await client.get(
-        f"/api/v1/conversations/{missing}", headers=TOKEN_HEADER
-    )
+    response = await client.get(f"/api/v1/conversations/{missing}", headers=TOKEN_HEADER)
     assert response.status_code == 404
     body = response.json()
     assert "detail" in body

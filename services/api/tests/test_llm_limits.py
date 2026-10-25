@@ -15,9 +15,7 @@ class NamedProvider:
         self.model = name
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
-        return LLMResponse(
-            text="ok", provider=self.name, model=self.model, latency_ms=0
-        )
+        return LLMResponse(text="ok", provider=self.name, model=self.model, latency_ms=0)
 
 
 class FailingProvider:
@@ -52,11 +50,11 @@ async def test_draft_enforces_per_user_limit(client, monkeypatch):
 
 
 def test_is_limit_reached_boundaries():
-    assert is_limit_reached(1, 2) is False          # запас ещё есть
-    assert is_limit_reached(2, 2) is True           # достигнут
-    assert is_limit_reached(9, 2) is True           # превышен
-    assert is_limit_reached(0, 2) is False          # ничего не потрачено
-    assert is_limit_reached(100, 0) is False        # 0 = лимит выключен
+    assert is_limit_reached(1, 2) is False  # запас ещё есть
+    assert is_limit_reached(2, 2) is True  # достигнут
+    assert is_limit_reached(9, 2) is True  # превышен
+    assert is_limit_reached(0, 2) is False  # ничего не потрачено
+    assert is_limit_reached(100, 0) is False  # 0 = лимит выключен
 
 
 def test_limit_read_from_env_variable(monkeypatch):
