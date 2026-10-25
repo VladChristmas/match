@@ -14,6 +14,7 @@ import { PrivacyView } from "./views/PrivacyView";
 import { ProfileView } from "./views/ProfileView";
 import { SettingsView } from "./views/SettingsView";
 import { VisionView } from "./views/VisionView";
+import { loadActiveTab, saveActiveTab } from "./lib/activeTab";
 import "./styles.css";
 
 type Tab =
@@ -45,9 +46,16 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "settings", label: "Настройки" },
 ];
 
+const TAB_IDS: readonly Tab[] = TABS.map((item) => item.id);
+
 function Shell() {
   const { ready, settings } = useApp();
-  const [tab, setTab] = useState<Tab>("profile");
+  const [tab, setTab] = useState<Tab>(() => loadActiveTab(TAB_IDS, "profile"));
+
+  const selectTab = (id: Tab) => {
+    setTab(id);
+    saveActiveTab(id, TAB_IDS);
+  };
 
   if (!ready) {
     return <div className="boot">Загрузка MATCH…</div>;
@@ -69,7 +77,7 @@ function Shell() {
               key={item.id}
               type="button"
               className={`nav-item ${tab === item.id ? "active" : ""}`}
-              onClick={() => setTab(item.id)}
+              onClick={() => selectTab(item.id)}
             >
               {item.label}
             </button>
@@ -88,7 +96,7 @@ function Shell() {
         {!settings.token ? (
           <Banner kind="warn">
             Токен доступа не задан — введённые данные не сохранятся. Укажите адрес API и токен в{" "}
-            <Button variant="primary" onClick={() => setTab("settings")}>
+            <Button variant="primary" onClick={() => selectTab("settings")}>
               настройках
             </Button>
           </Banner>

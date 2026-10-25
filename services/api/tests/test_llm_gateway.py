@@ -14,6 +14,18 @@ class FailingProvider:
         raise RuntimeError("boom")
 
 
+class TimeoutProvider:
+    """Обрыв/таймаут сети до провайдера (клиентский сбой соединения)."""
+
+    name = "broken-net"
+    model = "broken-net"
+
+    async def generate(self, request: LLMRequest) -> LLMResponse:
+        import httpx
+
+        raise httpx.ConnectError("обрыв соединения", request=None)
+
+
 class EmptyProvider:
     name = "empty"
     model = "empty"
@@ -54,3 +66,19 @@ def test_build_providers_falls_back_to_echo_when_unconfigured():
     settings = Settings(llm_provider="openai", llm_fallback_providers="")
     names = [provider.name for provider in build_providers(settings)]
     assert names == ["echo"]
+
+
+async def test_network_break_falls_back_to_echo():
+    """Обрыв сети до основного провайдера → ответ через резервный echo."""
+    gateway = LLMGateway([TimeoutProvider(), EchoProvider()])
+    response = await gateway.generate(_request())
+    assert response.provider == "echo"
+    assert response.text
+
+
+async def test_network_break_without_fallback_raises():
+    """Обрыв сети без резервного провайдера — LLMGateway сообщает о причине."""
+    gateway = LLMGateway([TimeoutProvider()])
+    with pytest.raises(LLMUnavailable) as excinfo:
+        await gateway.generate(_request())
+    assert "broken-net" in str(excinfo.value)

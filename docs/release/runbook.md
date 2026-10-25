@@ -107,3 +107,31 @@ services\api\.venv\Scripts\python.exe scripts\loadtest.py --base-url http://loca
 - Экспорт/удаление данных пользователя: `/api/v1/privacy/export`, `/deletion-request`.
 - Инциденты и откат: см. `docs/release/rollback-plan.md`.
 
+## 11. Резервная копия и восстановление PostgreSQL
+
+Скрипты (запускать из корня репозитория, имя контейнера — из
+`docker compose -f infra/docker-compose.yml ps`):
+
+```powershell
+# резервная копия (формата custom, сжатый) → D:\Backup\match-pg-<timestamp>.dump
+.\scripts\backup_pg.ps1
+
+# проверка восстановления: дамп восстанавливается в match_restore_check,
+# сверяются число таблиц и версия alembic, проверочная БД удаляется
+.\scripts\restore_pg.ps1 -BackupFile D:\Backup\match-pg-<timestamp>.dump
+```
+
+Полное восстановление боевой базы из дампа (осторожно, перезаписывает):
+
+```powershell
+docker exec infra-db-1 sh -c "dropdb -U match match"
+docker exec infra-db-1 sh -c "createdb -U match match"
+docker cp D:\Backup\match-pg-<timestamp>.dump infra-db-1:/tmp/restore.dump
+docker exec infra-db-1 sh -c "pg_restore -U match -d match --no-owner /tmp/restore.dump"
+docker exec infra-db-1 rm /tmp/restore.dump
+alembic upgrade head   # привести схему к актуальной после восстановления
+```
+
+Проверено в этом окружении: дамп → восстановление даёт те же 21 таблиц и
+версию миграции `0015` (прогон 2026-10-25).
+
