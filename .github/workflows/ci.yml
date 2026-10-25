@@ -80,7 +80,10 @@ jobs:
       # Тесты идут на in-memory SQLite; этот smoke гоняет рискованные пути
       # (dynamics, risk, compare) на реальном PostgreSQL — наивные/aware-даты,
       # типы колонок, JSON. Регрессия этапа 30: 500 на PostgreSQL при зелёных тестах.
+      # working-directory: . — скрипт лежит в корне репозитория, а job по умолчанию
+      # работает из services/api.
       - name: PostgreSQL smoke (aware/naive datetimes, dynamics)
+        working-directory: .
         env:
           MATCH_DATABASE_URL: postgresql+asyncpg://match:match@localhost:5432/match
           CI: "true"
