@@ -12,6 +12,18 @@ class UserProfileBase(BaseModel):
     boundaries: dict[str, Any] = Field(default_factory=dict)
 
 
+class LLMStatusRead(BaseModel):
+    """Фактический статус LLM-шлюза для UI (`GET /api/v1/llm/status`)."""
+
+    provider: str
+    fallback_providers: list[str] = Field(default_factory=list)
+    declared_providers: list[str] = Field(default_factory=list)
+    skipped_providers: list[str] = Field(default_factory=list)
+    user_request_limit: int = 0
+    user_request_limit_enabled: bool = False
+    timeout_seconds: float = 30.0
+
+
 class UserProfileUpdate(BaseModel):
     relationship_goals: list[str] | None = None
     values: list[str] | None = None

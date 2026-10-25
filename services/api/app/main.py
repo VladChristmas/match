@@ -15,6 +15,7 @@ from app.api.v1.dynamics import router as dynamics_router
 from app.api.v1.feedback import router as feedback_router
 from app.api.v1.health import router as health_router
 from app.api.v1.integrations import router as integrations_router
+from app.api.v1.llm import router as llm_router
 from app.api.v1.privacy import router as privacy_router
 from app.api.v1.profile import router as profile_router
 from app.api.v1.tokens import router as tokens_router
@@ -82,6 +83,7 @@ app.include_router(decisions_router)
 app.include_router(dynamics_router)
 app.include_router(privacy_router)
 app.include_router(vision_router)
+app.include_router(llm_router)
 app.include_router(tokens_router)
 app.include_router(admin_router)
 
