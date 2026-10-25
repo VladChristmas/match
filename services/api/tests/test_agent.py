@@ -145,3 +145,44 @@ async def test_create_action_for_foreign_conversation_404(client):
         json={"conversation_id": "00000000-0000-0000-0000-000000000000"},
     )
     assert response.status_code == 404
+
+
+async def test_approve_does_not_bypass_global_pause(client):
+    """Гонка: действие в очереди, паузу включили позже — approve не должен обходить стоп."""
+    conversation_id = await _create_conversation(client, "suggest")
+    created = await client.post(
+        "/api/v1/agent/actions",
+        headers=TOKEN_HEADER,
+        json={"conversation_id": conversation_id, "text": "Привет!", "generate": False},
+    )
+    action_id = created.json()["id"]
+    assert created.json()["status"] == "pending"
+
+    await client.patch(
+        "/api/v1/autonomy/budget", headers=TOKEN_HEADER, json={"global_paused": True}
+    )
+
+    blocked = await client.post(f"/api/v1/agent/actions/{action_id}/approve", headers=TOKEN_HEADER)
+    assert blocked.status_code == 409
+    assert "global_paused" in blocked.json()["detail"]
+
+    messages = await client.get(
+        f"/api/v1/conversations/{conversation_id}/messages", headers=TOKEN_HEADER
+    )
+    assert messages.json() == []
+
+    pending = await client.get("/api/v1/agent/actions?status=pending", headers=TOKEN_HEADER)
+    assert any(item["id"] == action_id for item in pending.json())
+
+    # Сняли паузу — прежнее решение человека проходит.
+    await client.patch(
+        "/api/v1/autonomy/budget", headers=TOKEN_HEADER, json={"global_paused": False}
+    )
+    approved = await client.post(f"/api/v1/agent/actions/{action_id}/approve", headers=TOKEN_HEADER)
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "sent"
+
+    messages = await client.get(
+        f"/api/v1/conversations/{conversation_id}/messages", headers=TOKEN_HEADER
+    )
+    assert any(m["direction"] == "outbound" and m["source"] == "agent" for m in messages.json())

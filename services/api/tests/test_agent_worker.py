@@ -137,3 +137,59 @@ async def test_zero_delay_sends_immediately(client):
     )
     assert created.status_code == 201
     assert created.json()["status"] == "sent"
+
+
+async def test_worker_skips_delivery_while_globally_paused(client, engine):
+    """Отложенное действие + глобальная пауза до срока: воркер не доставляет."""
+    action_id, _ = await _scheduled_action(client, delay=60)
+    await client.patch(
+        "/api/v1/autonomy/budget", headers=TOKEN_HEADER, json={"global_paused": True}
+    )
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    moment = datetime.now(UTC) + timedelta(minutes=5)
+
+    async with maker() as session:
+        assert await deliver_due(session, now=moment) == 0
+
+    async with maker() as session:
+        action = await session.get(AgentAction, uuid.UUID(action_id))
+        # Попытки не расходуются остановкой; действие ждёт снятия блокировки.
+        assert action.status == "scheduled"
+        assert action.attempts == 0
+        assert action.error == "blocked: global_paused"
+
+    await client.patch(
+        "/api/v1/autonomy/budget", headers=TOKEN_HEADER, json={"global_paused": False}
+    )
+    async with maker() as session:
+        assert await deliver_due(session, now=moment + timedelta(minutes=1)) == 1
+
+    async with maker() as session:
+        action = await session.get(AgentAction, uuid.UUID(action_id))
+        assert action.status == "sent"
+        assert action.sent_at is not None
+
+
+async def test_worker_skips_delivery_while_queue_paused(client, engine):
+    """Пауза очереди после постановки в расписание блокирует автономную доставку."""
+    action_id, conversation_id = await _scheduled_action(client, delay=60)
+    await client.post("/api/v1/agent/pause", headers=TOKEN_HEADER)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    moment = datetime.now(UTC) + timedelta(minutes=5)
+
+    async with maker() as session:
+        assert await deliver_due(session, now=moment) == 0
+
+    async with maker() as session:
+        action = await session.get(AgentAction, uuid.UUID(action_id))
+        assert action.status == "scheduled"
+        assert action.attempts == 0
+
+    await client.post("/api/v1/agent/resume", headers=TOKEN_HEADER)
+    async with maker() as session:
+        assert await deliver_due(session, now=moment + timedelta(minutes=1)) == 1
+
+    messages = await client.get(
+        f"/api/v1/conversations/{conversation_id}/messages", headers=TOKEN_HEADER
+    )
+    assert any(m["direction"] == "outbound" for m in messages.json())

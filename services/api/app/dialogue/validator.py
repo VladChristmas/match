@@ -8,6 +8,8 @@ SYSTEM_LEAK_PATTERNS = (
     re.compile(r"system prompt", re.IGNORECASE),
     re.compile(r"<\|.*?\|>"),
     re.compile(r"user communication style", re.IGNORECASE),
+    # Маркеры fencing недоверенных данных: черновик не должен их воспроизводить.
+    re.compile(r"<<<"),
 )
 
 

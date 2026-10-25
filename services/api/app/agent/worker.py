@@ -1,7 +1,10 @@
 """Внешний воркер автономности (Этап 21, ADR-0027).
 
 Доставляет отложенные действия агента (`agent_actions.status == "scheduled"`) в момент
-`scheduled_at`. При ошибке увеличивает счётчик попыток и назначает `next_attempt_at` по
+`scheduled_at`. Непосредственно перед каждой доставкой перепроверяет политику
+(пауза очереди + бюджет автономности): действие, заблокированное политикой,
+пропускается без расходования попыток и будет доставлено после снятия блокировки.
+При ошибке увеличивает счётчик попыток и назначает `next_attempt_at` по
 линейному backoff; после `MATCH_AGENT_MAX_ATTEMPTS` переводит действие в `failed`. Каждое
 действие коммитится отдельно, поэтому воркер не блокирует пользовательские запросы и
 переживает перезапуск. Запускается отдельным процессом `services/agent-runtime`.
@@ -17,7 +20,13 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agent.service import FAILED, SCHEDULED, _deliver
+from app.agent.service import (
+    FAILED,
+    SCHEDULED,
+    DeliveryBlocked,
+    _deliver_if_allowed,
+    get_or_create_settings,
+)
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import AgentAction, Conversation, User
@@ -34,7 +43,12 @@ async def _deliver_scheduled(session: AsyncSession, action: AgentAction) -> None
     user = await session.get(User, conversation.user_id)
     if user is None:
         raise RuntimeError("user not found")
-    await _deliver(session, user, conversation, action)
+    # Доставка воркером — автономная: уважает паузу очереди пользователя.
+    settings = await get_or_create_settings(session, user)
+    if settings.queue_paused:
+        raise DeliveryBlocked("queue_paused", "verify")
+    # Бюджет перепроверяется непосредственно перед доставкой.
+    await _deliver_if_allowed(session, user, conversation, action)
     action.scheduled_at = None
     action.next_attempt_at = None
     action.error = None
@@ -71,6 +85,13 @@ async def deliver_due(
     for action in due:
         try:
             await attempt_fn(session, action)
+        except DeliveryBlocked as exc:
+            # Политика перепроверена непосредственно перед доставкой: пропускаем,
+            # не расходуя попытки (attempts/backoff — про сбои доставки, не про
+            # остановку). Действие остаётся запланированным и будет доставлено
+            # на следующем цикле после снятия блокировки.
+            action.error = f"blocked: {exc.reason}"
+            logger.warning("action %s blocked by policy before delivery: %s", action.id, exc.reason)
         except Exception as exc:  # noqa: BLE001 - одна ошибка не должна ронять обработку
             attempts = (action.attempts or 0) + 1
             action.attempts = attempts

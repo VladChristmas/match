@@ -1,8 +1,17 @@
 """Автономность: настройки агента и очередь действий (Этап 8).
 
 Модель очереди — таблица `agent_actions` со статусами. `auto_send` (ADR-0009) доставляет
-сообщение сразу; иные режимы и общая пауза переводят действие в `pending`, где решение
-принимает человек (`approve` / `reject`). Идемпотентность — по ключу `idempotency_key`.
+сообщение сразу; иные режимы и общая пауза (`queue_paused`) переводят действие в
+`pending`, где решение принимает человек (`approve` / `reject`). Идемпотентность — по
+ключу `idempotency_key`.
+
+Политика автономности проверяется непосредственно перед каждой доставкой
+(`_deliver_if_allowed`): бюджет `AutonomyBudget` (включая глобальный kill-switch
+`global_paused`, активные часы, разрешённые диалоги, авто-остановку по ошибкам и
+дневной лимит) имеет приоритет над решением, принятым ранее, — approve и воркер не
+могут обойти остановку. `queue_paused` блокирует только автономную доставку
+(постановку в очередь и воркер); решение человека (`approve`) ей не блокируется —
+пользователь может осознанно доставить из паузы.
 """
 
 from __future__ import annotations
@@ -24,6 +33,21 @@ SCHEDULED = "scheduled"
 SENT = "sent"
 REJECTED = "rejected"
 FAILED = "failed"
+
+
+class DeliveryBlocked(Exception):
+    """Политика автономности запретила доставку непосредственно перед исполнением.
+
+    Поднимается из `_deliver_if_allowed`, когда бюджет автономности
+    (глобальная пауза, часы, разрешённые диалоги, авто-остановка, дневной
+    лимит) не разрешает исполнение в момент доставки. Действие остаётся
+    в очереди (`pending`/`scheduled`) — доставка не происходит.
+    """
+
+    def __init__(self, reason: str, mode: str = "stop") -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.mode = mode
 
 
 async def get_or_create_settings(session: AsyncSession, user: User) -> AgentSettings:
@@ -48,6 +72,11 @@ async def _deliver(
     conversation: Conversation,
     action: AgentAction,
 ) -> None:
+    """Собственно доставка: пишет сообщение и завершает действие.
+
+    Предполагает, что вызывающий уже подтвердил политику (см.
+    `_deliver_if_allowed`). Напрямую не используется вне сервиса/воркера.
+    """
     message = Message(
         conversation_id=conversation.id,
         direction="outbound",
@@ -61,6 +90,25 @@ async def _deliver(
     action.sent_at = datetime.now(UTC)
     action.attempts = (action.attempts or 0) + 1
     await record_success(session, user)
+
+
+async def _deliver_if_allowed(
+    session: AsyncSession,
+    user: User,
+    conversation: Conversation,
+    action: AgentAction,
+) -> None:
+    """Единая точка доставки: перепроверяет политику непосредственно перед исполнением.
+
+    Закрывает гонку «решение принято до паузы — исполнено после»: бюджет
+    проверяется и на approve, и в воркере, а не только при постановке в очередь.
+    """
+    budget_allowed, budget_reason, budget_mode = await check_execution_budget(
+        session, user, conversation
+    )
+    if not budget_allowed:
+        raise DeliveryBlocked(budget_reason or "budget_blocked", budget_mode)
+    await _deliver(session, user, conversation, action)
 
 
 async def enqueue_action(
@@ -137,10 +185,16 @@ async def enqueue_action(
 
 
 async def approve_action(session: AsyncSession, user: User, action: AgentAction) -> None:
+    """Доставка действия по решению человека.
+
+    Решение человека не отменяет политику: бюджет автономности
+    перепроверяется непосредственно перед доставкой. При блокировке
+    (`DeliveryBlocked`) действие остаётся в очереди, сообщение не создаётся.
+    """
     conversation = await session.get(Conversation, action.conversation_id)
     if conversation is None:
         raise ValueError("Conversation not found")
-    await _deliver(session, user, conversation, action)
+    await _deliver_if_allowed(session, user, conversation, action)
     action.decided_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(action)

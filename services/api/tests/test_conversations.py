@@ -1,3 +1,5 @@
+from app.dialogue.context import UNTRUSTED_CLOSE, UNTRUSTED_OPEN
+
 TOKEN_HEADER = {"X-Match-Token": "conv-token"}
 OTHER_HEADER = {"X-Match-Token": "conv-token-other"}
 
@@ -69,8 +71,12 @@ async def test_draft_uses_echo_provider_and_history(client):
     assert response.status_code == 200
     body = response.json()
     assert body["provider"] == "echo"
-    assert body["text"] == "Эхо: Привет"
-    assert body["validation_ok"] is True
+    # Входящий текст обрамлён маркерами недоверенных данных (prompt injection).
+    expected = f"Эхо: {UNTRUSTED_OPEN}\nПривет\n{UNTRUSTED_CLOSE}"
+    assert body["text"] == expected
+    # Echo воспроизводит данные целиком; валидатор помечает маркеры fencing —
+    # сквозная проверка и fencing, и детекта утечки.
+    assert body["validation_ok"] is False
 
 
 async def test_draft_on_foreign_conversation_is_not_found(client):

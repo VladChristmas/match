@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.agent.service import (
     PENDING,
+    DeliveryBlocked,
     approve_action,
     enqueue_action,
     get_or_create_settings,
@@ -150,7 +151,13 @@ async def approve(action_id: uuid.UUID, session: SessionDep, user: CurrentUser) 
             status_code=status.HTTP_409_CONFLICT,
             detail="Only pending actions can be approved",
         )
-    await approve_action(session, user, action)
+    try:
+        await approve_action(session, user, action)
+    except DeliveryBlocked as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Delivery blocked by autonomy budget: {exc.reason}",
+        ) from None
     return action
 
 
