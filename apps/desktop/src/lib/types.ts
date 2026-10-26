@@ -1,6 +1,17 @@
 export type UUID = string;
 export type JsonObject = Record<string, unknown>;
 
+/** Статус LLM-шлюза (`GET /api/v1/llm/status`). */
+export interface LLMStatus {
+  provider: string;
+  fallback_providers: string[];
+  declared_providers: string[];
+  skipped_providers: string[];
+  user_request_limit: number;
+  user_request_limit_enabled: boolean;
+  timeout_seconds: number;
+}
+
 export interface UserProfile {
   id: UUID;
   user_id: UUID;

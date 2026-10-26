@@ -24,6 +24,7 @@ import type {
   FeedbackClassification,
   FeedbackCreate,
   HealthResponse,
+  LLMStatus,
   Message,
   MessageImport,
   PrivacyExport,
@@ -126,6 +127,11 @@ export class ApiClient {
 
   health(): Promise<HealthResponse> {
     return this.request<HealthResponse>("/health");
+  }
+
+  /** Фактический статус LLM-шлюза (провайдер, fallback, лимит) — UI-индикатор. */
+  llmStatus(): Promise<LLMStatus> {
+    return this.request<LLMStatus>("/api/v1/llm/status");
   }
 
   ready(): Promise<HealthResponse> {

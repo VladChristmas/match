@@ -4,9 +4,10 @@ import { Badge, Banner, Button, Field, Section, TextInput } from "../components/
 import { useApp } from "../context/AppContext";
 import { ApiClient, errorMessage } from "../lib/api";
 import { useAsyncData } from "../lib/hooks";
+import { summarizeLLMStatus } from "../lib/llmStatus";
 import { loadAppInfo, type AppInfo } from "../lib/settings";
 import { loadStorageInfo, storageSupported, type StorageInfo } from "../lib/storage";
-import type { AccessTokenIssued } from "../lib/types";
+import type { AccessTokenIssued, LLMStatus } from "../lib/types";
 
 type Status = { kind: "success" | "error" | "info"; text: string } | null;
 
@@ -159,6 +160,53 @@ function TokensSection() {
   );
 }
 
+function LLMStatusSection() {
+  const { api } = useApp();
+  const status = useAsyncData<LLMStatus | null>(
+    async () => {
+      try {
+        return await api.llmStatus();
+      } catch {
+        return null;
+      }
+    },
+    [api],
+  );
+
+  return (
+    <Section
+      title="Языковая модель"
+      description="Фактический провайдер ответов, резерв и лимит расхода. Проверяйте при смене настроек сервера (аудит P1-1)."
+    >
+      {status.loading ? <p className="muted">Загрузка статуса модели…</p> : null}
+      {status.data ? (
+        (() => {
+          const summary = summarizeLLMStatus(status.data);
+          return (
+            <>
+              <div className="row">
+                <Badge tone={summary.tone === "ok" ? "ok" : "warn"}>{summary.headline}</Badge>
+                <Badge>{summary.limitText}</Badge>
+              </div>
+              {summary.warnings.map((warning) => (
+                <Banner kind="warn" key={warning}>
+                  {warning}
+                </Banner>
+              ))}
+            </>
+          );
+        })()
+      ) : null}
+      {!status.loading && !status.data ? (
+        <Banner kind="info">
+          Статус модели недоступен: проверьте адрес API и токен — сервер должен отвечать на
+          GET /api/v1/llm/status.
+        </Banner>
+      ) : null}
+    </Section>
+  );
+}
+
 export function SettingsView() {
   const { settings, update, logJournal, outboxCount, syncOutbox } = useApp();
   const [baseUrl, setBaseUrl] = useState(settings.apiBaseUrl);
@@ -228,7 +276,7 @@ export function SettingsView() {
           </Field>
           <Field
             label="Токен доступа"
-            hint="Передаётся как Authorization: Bearer. Персональные данные не собираются."
+            hint="Передаётся как Authorization: Bearer. Переписка и профиль могут содержать личные сведения — см. политику приватности."
           >
             <TextInput value={token} onChange={setToken} placeholder="match-token-…" />
           </Field>
@@ -249,6 +297,8 @@ export function SettingsView() {
       </Section>
 
       <TokensSection />
+
+      <LLMStatusSection />
 
       <Section
         title="Локальное хранилище"
