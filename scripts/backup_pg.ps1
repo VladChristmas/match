@@ -22,9 +22,17 @@ if (-not (Test-Path $OutDir)) {
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $target = Join-Path $OutDir "match-pg-$timestamp.dump"
 
-docker exec $Container sh -c "pg_dump -U $User -d $Database -Fc -f /tmp/match-backup.dump"
-docker cp "$Container`:/tmp/match-backup.dump" "$target"
-docker exec $Container rm -f /tmp/match-backup.dump
+# Docker/NOTICE на stderr: PowerShell 5.1 при EAP=Stop оборачивает их в
+# NativeCommandError и обрывает скрипт. Вызовы идут через cmd /c — stderr
+# подавляется на уровне cmd, stdout возвращается как обычно.
+function Invoke-Docker {
+    param([Parameter(Mandatory = $true)][string]$CommandLine)
+    return (& cmd /c "$CommandLine 2>NUL")
+}
+
+Invoke-Docker "docker exec $Container sh -c `"pg_dump -U $User -d $Database -Fc -f /tmp/match-backup.dump`""
+Invoke-Docker "docker cp ${Container}`:/tmp/match-backup.dump `"$target`""
+Invoke-Docker "docker exec $Container rm -f /tmp/match-backup.dump"
 
 $size = (Get-Item $target).Length
 if ($size -le 0) {

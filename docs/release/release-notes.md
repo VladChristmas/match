@@ -86,5 +86,13 @@ scaffold-check, database (alembic up/down + pg_smoke).
 ## Оставшиеся задачи до публикации
 
 - ~~Финальное приёмочное тестирование~~ — выполнено (`b37b649`, `acceptance-checklist.md`).
-- Резервная копия PostgreSQL и процедура восстановления на боевом окружении.
-- Прогон `docs/release/runbook.md` на чистой машине.
+- ~~Резервная копия PostgreSQL и процедура восстановления на боевом окружении~~ —
+  выполнено: `scripts/backup_pg.ps1` / `scripts/restore_pg.ps1`, runbook §11;
+  живой прогон на чистой среде 2026-10-26 (21 таблица, alembic `0015`); по ходу
+  исправлен баг скриптов (PowerShell 5.1 + EAP=Stop обрывал restore на NOTICE
+  от docker — на чистой машине падал всегда).
+- ~~Прогон `docs/release/runbook.md` на чистой машине~~ — выполнено 2026-10-26:
+  стек `down -v` → поднят заново, контейнерный `alembic upgrade head`, health/ready,
+  прод-lockдаун (401), live-smoke ключевых сценариев, loadtest 500/500.
+- Vision «в поле» на реальном экране знакомств — процедура для оператора:
+  `docs/release/vision-field-test.md` (требуется человек с экраном площадки).

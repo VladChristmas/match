@@ -23,22 +23,30 @@ if (-not (Test-Path $BackupFile)) {
     throw "Backup file not found: $BackupFile"
 }
 
-docker cp $BackupFile "$Container`:/tmp/restore-check.dump" 2>$null
-docker exec $Container sh -c "dropdb --if-exists -U match $TargetDatabase" 2>$null
-docker exec $Container sh -c "createdb -U match $TargetDatabase" 2>$null
-docker exec $Container sh -c "pg_restore -U match -d $TargetDatabase --no-owner /tmp/restore-check.dump" 2>$null
+# Docker/NOTICE на stderr: PowerShell 5.1 при EAP=Stop оборачивает их в
+# NativeCommandError и обрывает скрипт (баг чистого прогона). Вызовы идут через
+# cmd /c — stderr подавляется на уровне cmd, stdout возвращается как обычно.
+function Invoke-Docker {
+    param([Parameter(Mandatory = $true)][string]$CommandLine)
+    return (& cmd /c "$CommandLine 2>NUL")
+}
 
-$src = docker exec $Container psql -U match -d $SourceDatabase -tAc "select count(*) from information_schema.tables where table_schema='public';"
-$dst = docker exec $Container psql -U match -d $TargetDatabase -tAc "select count(*) from information_schema.tables where table_schema='public';"
+Invoke-Docker "docker cp `"$BackupFile`" ${Container}:/tmp/restore-check.dump"
+Invoke-Docker "docker exec $Container sh -c `"dropdb --if-exists -U match $TargetDatabase`""
+Invoke-Docker "docker exec $Container sh -c `"createdb -U match $TargetDatabase`""
+Invoke-Docker "docker exec $Container sh -c `"pg_restore -U match -d $TargetDatabase --no-owner /tmp/restore-check.dump`""
+
+$src = Invoke-Docker "docker exec $Container psql -U match -d $SourceDatabase -tAc `"select count(*) from information_schema.tables where table_schema='public';`""
+$dst = Invoke-Docker "docker exec $Container psql -U match -d $TargetDatabase -tAc `"select count(*) from information_schema.tables where table_schema='public';`""
 
 if ($src.Trim() -ne $dst.Trim()) {
-    docker exec $Container sh -c "rm -f /tmp/restore-check.dump"
+    Invoke-Docker "docker exec $Container sh -c `"rm -f /tmp/restore-check.dump`""
     throw "Table count mismatch: source=$src restored=$dst"
 }
 
-$version = docker exec $Container psql -U match -d $TargetDatabase -tAc "select version_num from alembic_version;"
+$version = Invoke-Docker "docker exec $Container psql -U match -d $TargetDatabase -tAc `"select version_num from alembic_version;`""
 Write-Output "OK restored tables=$dst alembic=$($version.Trim()) into $TargetDatabase"
 
 if (-not $Keep) {
-    docker exec $Container sh -c "dropdb --if-exists -U match $TargetDatabase && rm -f /tmp/restore-check.dump"
+    Invoke-Docker "docker exec $Container sh -c `"dropdb --if-exists -U match $TargetDatabase && rm -f /tmp/restore-check.dump`""
 }

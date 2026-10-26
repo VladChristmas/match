@@ -86,6 +86,16 @@ pnpm tauri build
 удаляется вместе с каталогом данных приложения (удаление серверных данных —
 отдельно, `/api/v1/privacy/deletion-request` или экран «Приватность»).
 
+Предпосылки для машины, где ставится клиент:
+- WebView2 Runtime (Evergreen) — предустановлен на Windows 11 и актуальных
+  Windows 10; на чистых/урезанных образах ставить отдельно (Edge WebView2).
+- Microsoft Visual C++ x64 Redistributable (2015–2022) — рантайм Tauri/WebView2.
+- Порт API: клиент обращается к `http://127.0.0.1:8000` по умолчанию
+  (`apps/desktop/src/lib/settings.ts`); при ином адресе сервера — задать в
+  «Настройки» клиента.
+- Бэкенд ставится/обновляется отдельно: compose-стек (`infra/docker-compose.yml`,
+  db+api, `alembic upgrade head` на старте контейнера) либо ручной путь runbook §2.
+
 ## 9. Проверки перед выкладкой
 ```powershell
 # backend
