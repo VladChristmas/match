@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { AppProvider, useApp } from "./context/AppContext";
 import { AdminView } from "./views/AdminView";
+import { EmulatorView } from "./views/EmulatorView";
 import { AnalysisView } from "./views/AnalysisView";
 import { AutonomyView } from "./views/AutonomyView";
 import { Banner, Button } from "./components/ui";
@@ -27,6 +28,7 @@ type Tab =
   | "memory"
   | "vision"
   | "journal"
+  | "emulator"
   | "admin"
   | "privacy"
   | "settings";
@@ -41,6 +43,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "memory", label: "Память" },
   { id: "vision", label: "Зрение" },
   { id: "journal", label: "Журнал" },
+  { id: "emulator", label: "Эмулятор и тесты" },
   { id: "admin", label: "Админ" },
   { id: "privacy", label: "Приватность" },
   { id: "settings", label: "Настройки" },
@@ -111,6 +114,7 @@ function Shell() {
           {tab === "memory" ? <MemoryView /> : null}
           {tab === "vision" ? <VisionView /> : null}
           {tab === "journal" ? <JournalView /> : null}
+          {tab === "emulator" ? <EmulatorView /> : null}
           {tab === "admin" ? <AdminView /> : null}
           {tab === "privacy" ? <PrivacyView /> : null}
           {tab === "settings" ? <SettingsView /> : null}

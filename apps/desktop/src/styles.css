@@ -618,3 +618,36 @@ table.tokens td {
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
+
+/* --- Лаборатория тестирования: виртуальный смартфон (docs/testing/emulator-lab-spec.md) --- */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stack > * {
+  margin: 0;
+}
+
+.mono {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.phone-frame {
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: #0a0c10;
+  display: inline-block;
+  line-height: 0;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.phone-canvas {
+  border-radius: 20px;
+  display: block;
+}
