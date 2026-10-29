@@ -76,42 +76,7 @@ export class ApiClient {
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const headers = new Headers(init?.headers);
-    headers.set("Accept", "application/json");
-    if (init?.body !== undefined && !headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
-    if (this.token) {
-      headers.set("Authorization", `Bearer ${this.token}`);
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-    let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl}${path}`, {
-        ...init,
-        headers,
-        signal: controller.signal,
-      });
-    } catch {
-      throw new ApiError(0, `Не удалось подключиться к API (${this.baseUrl})`);
-    } finally {
-      clearTimeout(timer);
-    }
-
-    const text = await response.text();
-    const data = text ? safeJson(text) : null;
-
-    if (!response.ok) {
-      const detail =
-        data && typeof data === "object" && "detail" in data
-          ? (data as { detail: unknown }).detail
-          : data;
-      const message = typeof detail === "string" ? detail : `HTTP ${response.status}`;
-      throw new ApiError(response.status, message, data);
-    }
-
+    const { data } = await this.requestFull<T>(path, init);
     return data as T;
   }
 
@@ -264,6 +229,69 @@ export class ApiClient {
       headers,
       body: JSON.stringify(payload),
     });
+  }
+
+  /**
+   * Создание действия с фактическим HTTP-статусом: лаборатория тестирования
+   * различает 201 (создано) и 200 (повтор по Idempotency-Key — доказательство
+   * отсутствия дубля). Аддитивно: `createAction` не изменяется.
+   */
+  async createActionWithStatus(
+    payload: AgentActionCreate,
+    idempotencyKey?: string,
+  ): Promise<{ status: number; action: AgentAction }> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+    const { status, data } = await this.requestFull<AgentAction>("/api/v1/agent/actions", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    return { status, action: data as AgentAction };
+  }
+
+  /** Запрос, возвращающий статус и разобранное тело (одно обращение к сети). */
+  private async requestFull<T>(
+    path: string,
+    init?: RequestInit,
+  ): Promise<{ status: number; data: T | null }> {
+    const headers = new Headers(init?.headers);
+    headers.set("Accept", "application/json");
+    if (init?.body !== undefined && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    if (this.token) {
+      headers.set("Authorization", `Bearer ${this.token}`);
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        ...init,
+        headers,
+        signal: controller.signal,
+      });
+    } catch {
+      throw new ApiError(0, `Не удалось подключиться к API (${this.baseUrl})`);
+    } finally {
+      clearTimeout(timer);
+    }
+    try {
+      const text = await response.text();
+      const data = text ? (safeJson(text) as T) : null;
+      if (!response.ok) {
+        const detail =
+          data && typeof data === "object" && "detail" in data
+            ? (data as { detail: unknown }).detail
+            : data;
+        const message = typeof detail === "string" ? detail : `HTTP ${response.status}`;
+        throw new ApiError(response.status, message, data);
+      }
+      return { status: response.status, data };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   approveAction(id: string): Promise<AgentAction> {
