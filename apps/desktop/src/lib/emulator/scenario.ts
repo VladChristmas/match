@@ -69,6 +69,7 @@ export const KIND_EXPECTATIONS: Record<StepKind, readonly string[]> = {
   assert_state: [
     "action_status_is",
     "no_duplicate_action",
+    "action_count_is",
     "budget_field_is",
     "http_status_is",
     "decision_mode_in",
@@ -95,7 +96,8 @@ export interface ImportMessagePayload {
 }
 
 export interface EvaluateDecisionPayload {
-  text: string;
+  /** Тригер решения. Пусто → решение строится на состоянии диалога (как CI-тест). */
+  text?: string;
 }
 
 export interface CreateActionPayload {
@@ -219,7 +221,11 @@ export function validateScenario(scenario: Scenario): string[] {
     }
     if (step.kind === "evaluate_decision") {
       const payload = step.payload as EvaluateDecisionPayload | undefined;
-      if (!payload?.text) errors.push(`шаг ${step.id}: нет триггерного текста`);
+      // text опционален: без тригера decide() работает по состоянию диалога
+      // (reciprocity/неоднозначность) — так устроен CI-тест test_safety_autonomous.
+      if (payload !== undefined && payload.text !== undefined && payload.text.length === 0) {
+        errors.push(`шаг ${step.id}: пустой триггерный текст`);
+      }
     }
     if (step.kind === "create_action") {
       const payload = step.payload as CreateActionPayload | undefined;

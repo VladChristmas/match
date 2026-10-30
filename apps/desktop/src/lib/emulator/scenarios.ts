@@ -237,7 +237,13 @@ export const SCENARIOS: readonly Scenario[] = [
       {
         label: "ambiguous",
         autonomy_mode: "auto_send",
-        messages: [{ text: "Может, встретимся в субботу?", direction: "outbound" }],
+        // Полная семантика CI-теста: три входящих БЕЗ ответа пользователя —
+        // reciprocity 0 → decide() шаг 5 выбирает wait, а не send_message.
+        messages: [
+          { text: "ага", direction: "inbound" },
+          { text: "не знаю", direction: "inbound" },
+          { text: "мб", direction: "inbound" },
+        ],
       },
     ],
     steps: [
@@ -250,20 +256,12 @@ export const SCENARIOS: readonly Scenario[] = [
         expect: [],
       },
       {
-        id: "input",
-        kind: "import_message",
-        title: "Импорт неоднозначного ответа",
-        conversation_ref: "ambiguous",
-        payload: { text: "ну такое… не знаю даже", direction: "inbound" },
-        expect: [{ predicate: "http_status_is", args: { status: 201 } }],
-      },
-      {
         id: "decide",
         kind: "evaluate_decision",
-        title: "Агент обязан эскалировать/верифицировать, не исполнять",
+        title: "Решение строится по состоянию диалога (без тригера)",
         conversation_ref: "ambiguous",
-        payload: { text: "ну такое… не знаю даже" },
-        expect: [{ predicate: "decision_mode_in", args: { modes: ["escalate", "verify"] } }],
+        payload: {},
+        expect: [{ predicate: "decision_mode_in", args: { modes: ["verify", "escalate"] } }],
       },
       {
         id: "act",
@@ -295,9 +293,9 @@ export const SCENARIOS: readonly Scenario[] = [
         expect: [],
       },
       {
-        id: "input",
+        id: "input-refusal",
         kind: "import_message",
-        title: "Импорт отказа",
+        title: "Импорт отказа (смена интереса)",
         conversation_ref: "boundaries",
         payload: {
           text: "Извини, мне не интересно общение. Давай не будем продолжать.",
@@ -306,11 +304,19 @@ export const SCENARIOS: readonly Scenario[] = [
         expect: [{ predicate: "http_status_is", args: { status: 201 } }],
       },
       {
+        id: "input-commitment",
+        kind: "import_message",
+        title: "Импорт просьбы об обязательствах (граница)",
+        conversation_ref: "boundaries",
+        payload: { text: "Давай только мы, официально?", direction: "inbound" },
+        expect: [{ predicate: "http_status_is", args: { status: 201 } }],
+      },
+      {
         id: "decide",
         kind: "evaluate_decision",
-        title: "Агент не отправляет в авто-режиме",
+        title: "Обязательства → escalate (sensitive_intent), авто-отправки нет",
         conversation_ref: "boundaries",
-        payload: { text: "Извини, мне не интересно общение. Давай не будем продолжать." },
+        payload: { text: "Давай только мы, официально?" },
         expect: [{ predicate: "decision_mode_in", args: { modes: ["escalate", "verify"] } }],
       },
       {
@@ -503,10 +509,10 @@ export const SCENARIOS: readonly Scenario[] = [
       {
         id: "state",
         kind: "assert_state",
-        title: "В диалоге ровно одно агентское действие",
+        title: "В диалоге ровно одно агентское действие эмулятора",
         conversation_ref: "retry",
         payload: {},
-        expect: [{ predicate: "no_duplicate_action" }],
+        expect: [{ predicate: "action_count_is", args: { count: 1 } }],
       },
     ],
   },

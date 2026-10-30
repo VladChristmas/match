@@ -117,6 +117,27 @@ services\api\.venv\Scripts\python.exe scripts\loadtest.py --base-url http://loca
 - Экспорт/удаление данных пользователя: `/api/v1/privacy/export`, `/deletion-request`.
 - Инциденты и откат: см. `docs/release/rollback-plan.md`.
 
+## 12. Лаборатория тестирования «Эмулятор и тесты»
+Вкладка клиента «Эмулятор и тесты» рендерит виртуальный смартфон и прогоняет
+8 обязательных сценариев через РЕАЛЬНЫЕ endpoint'ы (vision-наблюдения с
+`analyze=true`, decisions, actions, autonomy budget) — имитации агента нет.
+ТЗ: `docs/testing/emulator-lab-spec.md`.
+
+GUI: клиент → вкладка «Эмулятор и тесты» → выбрать сценарий → «Запустить
+сценарий»; результаты шагов (ожидание/факт/HTTP/время/итог) — в таблице,
+live-состояние агента — в панелях справа.
+
+Живой прогон без GUI (регламент/CI), против работающего API:
+```powershell
+$env:MATCH_BASE_URL="http://127.0.0.1:8000"; $env:MATCH_TOKEN="<токен>"
+services\api\.venv\Scripts\python.exe scripts\emulator_lab_live.py
+```
+Ожидаемый итог: `checks: 31, failed: 0`. При недоступном vision-провайдере
+наблюдения честно остаются `analysis_pending=true` (корректное поведение).
+Для dev-прогона удобно `MATCH_AUTH_ALLOW_LEGACY_TOKENS=true` и
+`MATCH_LLM_PROVIDER=echo` (см. §4).
+
+
 ## 11. Резервная копия и восстановление PostgreSQL
 
 Скрипты (запускать из корня репозитория, имя контейнера — из

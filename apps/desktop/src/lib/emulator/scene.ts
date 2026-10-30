@@ -337,10 +337,11 @@ export function paint(ctx: CanvasRenderingContext2D, scene: Scene, scale: number
 
 /** Кадр из canvas: paint сцены → PNG base64 (без data-префикса — как ждёт decode_png_frame). */
 export function captureVirtualFrame(
-  canvas: HTMLCanvasElement,
+  canvas: HTMLCanvasElement | null,
   screen: VirtualScreen,
   options: SceneOptions & { scale: number },
 ): { png_base64: string; width: number; height: number } {
+  if (!canvas) throw new Error("canvas эмулятора недоступен");
   const { scale, ...sceneOptions } = options;
   const scene = buildScene(screen, sceneOptions);
   canvas.width = scene.width;

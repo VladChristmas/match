@@ -236,7 +236,7 @@ export function createScenarioRunner(options: RunnerOptions): ScenarioRunner {
           const payload = step.payload as EvaluateDecisionPayload;
           const decision = await api.evaluateDecision({
             conversation_id: conversationId,
-            trigger_text: payload.text,
+            trigger_text: payload.text ?? null,
           });
           httpStatus = 200;
           outcome.decision = decision;

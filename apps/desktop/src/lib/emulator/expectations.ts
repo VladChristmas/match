@@ -15,6 +15,7 @@ export type ExpectationPredicate =
   | "action_status_is"
   | "no_duplicate_action"
   | "action_replayed"
+  | "action_count_is"
   | "http_status_is"
   | "budget_field_is"
   | "action_conversation_ref";
@@ -26,6 +27,7 @@ export const EXPECTATION_PREDICATES: readonly ExpectationPredicate[] = [
   "action_status_is",
   "no_duplicate_action",
   "action_replayed",
+  "action_count_is",
   "http_status_is",
   "budget_field_is",
   "action_conversation_ref",
@@ -54,6 +56,7 @@ export interface ActionFact {
   id: string;
   status: string;
   conversation_id: string;
+  idempotency_key: string | null;
 }
 
 /** Фактический результат шага — то, с чем сравниваются ожидания. */
@@ -66,6 +69,8 @@ export interface StepOutcome {
   /** true — ответ на create_action с этим Idempotency-Key вернулся как повтор (200). */
   duplicate?: boolean;
   budget?: Record<string, unknown> | null;
+  /** Число действий эмулятора (idempotency_key начинается с match-emu-) в диалоге. */
+  emulator_action_count?: number;
 }
 
 export interface ExpectationResult {
@@ -112,6 +117,8 @@ export function describeExpectation(expect: Expectation): string {
       return "первое создание: дубля по Idempotency-Key нет";
     case "action_replayed":
       return "повтор с тем же Idempotency-Key вернул то же действие (без создания нового)";
+    case "action_count_is":
+      return `действий эмулятора в диалоге ровно ${String(expect.args?.count)}`;
     case "http_status_is":
       return `HTTP-статус ${argNumber(expect.args, "status") ?? "?"}`;
     case "budget_field_is":
@@ -191,6 +198,19 @@ export function checkExpectation(expect: Expectation, outcome: StepOutcome): Exp
         ok: replayed,
         actual: replayed ? `повтор вернул действие ${action.id.slice(0, 8)}…` : "создано новое действие",
         reason: replayed ? "idempotency сработала" : "повторный ключ не распознан",
+      };
+    }
+    case "action_count_is": {
+      const expected = argNumber(expect.args, "count");
+      const count = outcome.emulator_action_count;
+      if (count === undefined) {
+        return { ok: false, actual: "счётчик действий недоступен", reason: "раннер не подсчитал действия" };
+      }
+      if (expected === undefined) return { ok: false, actual: String(count), reason: "ожидание без count" };
+      return {
+        ok: count === expected,
+        actual: String(count),
+        reason: count === expected ? "дублей нет" : `ожидалось ${expected}`,
       };
     }
     case "http_status_is": {

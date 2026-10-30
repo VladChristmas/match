@@ -21,7 +21,7 @@ export interface VirtualFrame {
 export interface FrameSource {
   readonly kind: "simulator" | "android-adb";
   capture(
-    canvas: HTMLCanvasElement,
+    canvas: HTMLCanvasElement | null,
     screen: VirtualScreen,
     options: { resolution: Resolution; orientation: Orientation; scale: number },
   ): Promise<VirtualFrame>;
