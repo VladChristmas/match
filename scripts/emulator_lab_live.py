@@ -7,11 +7,15 @@ acceptance-checklist. Кадр — настоящий PNG (генератор к
 `POST /api/v1/vision/observations` (analyze=true); агент — через реальные
 decisions/actions/budget.
 
+Фаза 2: `--adb [SERIAL]` — кадр наблюдений снимается с РЕАЛЬНОГО устройства
+(`adb exec-out screencap -p`), source_label=android-adb-live (см. runbook §12.1).
+
 Ожидания поведенческие: vision-pending при недоступном провайдере — корректный
 результат (как test_vision.py:197), а не «зелёный» успех.
 
 Запуск:
     MATCH_BASE_URL=http://127.0.0.1:8000 MATCH_TOKEN=<token> python scripts/emulator_lab_live.py
+    python scripts/emulator_lab_live.py --adb emulator-5554   # Фаза 2: кадр с устройства
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ from __future__ import annotations
 import base64
 import os
 import struct
+import subprocess
 import sys
 import time
 import uuid
@@ -29,8 +34,56 @@ import httpx
 BASE_URL = os.environ.get("MATCH_BASE_URL", "http://127.0.0.1:8000")
 TOKEN = os.environ.get("MATCH_TOKEN", "emulator-lab")
 TIMEOUT = 20.0
+# Фаза 2: серийный номер устройства adb (None = генератор PNG в скрипте).
+ADB_SERIAL: str | None = None
+SOURCE_LABEL = "emulator-live"
 
 results: list[tuple[str, str, str, str, bool]] = []
+
+
+def adb_screencap(serial: str | None) -> tuple[str, int, int]:
+    """Кадр с реального устройства: `adb exec-out screencap -p` → base64 + размеры."""
+    command = ["adb"]
+    if serial:
+        command += ["-s", serial]
+    command += ["exec-out", "screencap", "-p"]
+    try:
+        proc = subprocess.run(command, capture_output=True, timeout=20)
+    except FileNotFoundError as exc:
+        raise SystemExit("adb не найден в PATH — установите Android Platform Tools (runbook §12.1)") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise SystemExit("adb не ответил за 20 с — устройство офлайн?") from exc
+    if proc.returncode != 0 or not proc.stdout:
+        raise SystemExit(f"adb screencap не дал кадр (код {proc.returncode}) — проверьте `adb devices -l`")
+    png = proc.stdout
+    if png[:8] != b"\x89PNG\r\n\x1a\n" or len(png) < 24:
+        raise SystemExit("adb вернул не-PNG — странный ответ устройства")
+    width, height = struct.unpack(">II", png[16:24])
+    return base64.b64encode(png).decode(), width, height
+
+
+def frame(conv: str, label: str, captured_at: str) -> tuple[int, dict | list | None]:
+    """Наблюдение с кадром: с устройства adb (Фаза 2) или сгенерированный PNG."""
+    if ADB_SERIAL is not None:
+        frame_b64, width, height = adb_screencap(ADB_SERIAL)
+        print(f"  кадр adb: {ADB_SERIAL or '(default)'} → {width}×{height}")
+        if width > 1280:
+            raise SystemExit(
+                f"кадр шире 1280 px ({width}) — decode_png_frame отклонит; уменьшите разрешение экрана устройства"
+            )
+    else:
+        frame_b64 = png_b64()
+    return call(
+        "POST",
+        "/api/v1/vision/observations",
+        json={
+            "conversation_id": conv,
+            "frame_base64": frame_b64,
+            "source_label": SOURCE_LABEL,
+            "captured_at": captured_at,
+            "analyze": True,
+        },
+    )
 
 
 def png_b64(width: int = 360, height: int = 640) -> str:
@@ -135,17 +188,7 @@ def set_budget(**patch: object) -> int:
 def scenario_new_match() -> None:
     name = "1. new_match_first_message"
     conv = conversation()
-    status, data = call(
-        "POST",
-        "/api/v1/vision/observations",
-        json={
-            "conversation_id": conv,
-            "frame_base64": png_b64(),
-            "source_label": "emulator-live",
-            "captured_at": "2026-10-30T12:00:00Z",
-            "analyze": True,
-        },
-    )
+    status, data = frame(conv, name, "2026-10-30T12:00:00Z")
     pending = (data or {}).get("analysis_pending")
     check(f"{name}: observation", "201", status == 201, str(status))
     check(f"{name}: analysis_pending", "провайдер недоступен → pending (ожидаемо)", pending is True, str(pending))
@@ -166,17 +209,7 @@ def scenario_continue_with_memory() -> None:
         ("Люблю горные походы и кофе)", "inbound"),
     ]:
         assert import_message(conv, text, direction) == 201
-    status, _ = call(
-        "POST",
-        "/api/v1/vision/observations",
-        json={
-            "conversation_id": conv,
-            "frame_base64": png_b64(),
-            "source_label": "emulator-live",
-            "captured_at": "2026-10-30T12:01:00Z",
-            "analyze": True,
-        },
-    )
+    status, _ = frame(conv, name, "2026-10-30T12:01:00Z")
     check(f"{name}: observation", "201", status == 201, str(status))
     followup = "Кстати, помнишь, я говорила про походы? Расскажи про свой последний)"
     assert import_message(conv, followup) == 201
@@ -286,10 +319,29 @@ def scenario_autonomy_limits() -> None:
     check(f"{name}: доставлено", "sent", action2["status"] == "sent", action2["status"])
 
 
+def parse_args(argv: list[str]) -> None:
+    """Фаза 2: `--adb [SERIAL]` — кадр с реального устройства вместо генератора."""
+    global ADB_SERIAL, SOURCE_LABEL
+    args = list(argv[1:])
+    if "--adb" in args:
+        index = args.index("--adb")
+        ADB_SERIAL = args[index + 1] if index + 1 < len(args) and not args[index + 1].startswith("-") else None
+        args = args[:index] + args[index + 1 + (1 if ADB_SERIAL else 0) :]
+        SOURCE_LABEL = "android-adb-live"
+        print(f"adb-режим: устройство {ADB_SERIAL or '(default, устройства должно быть одно)'}")
+    if args:
+        print(f"игнорирую лишние аргументы: {args}")
+
+
 def main() -> int:
+    parse_args(sys.argv)
     started = time.time()
-    print(f"== emulator lab live: {BASE_URL} (token: {TOKEN}) ==")
-    status, health = call("GET", "/health")
+    print(f"== emulator lab live: {BASE_URL} (token: {TOKEN}, label: {SOURCE_LABEL}) ==")
+    try:
+        status, health = call("GET", "/health")
+    except httpx.HTTPError as exc:
+        print(f"API недоступен ({exc}) — прогон невозможен")
+        return 2
     print(f"health: {status} {health}")
     if status != 200:
         print("API недоступен — прогон невозможен")

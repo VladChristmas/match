@@ -76,6 +76,8 @@ export interface RenderOptions {
   resolutionId: string;
   orientation: Orientation;
   scale: number;
+  /** Серийный номер устройства ADB — используется только источником android-adb (Фаза 2). */
+  serial?: string | null;
 }
 
 export interface RunnerOptions {
@@ -206,11 +208,13 @@ export function createScenarioRunner(options: RunnerOptions): ScenarioRunner {
             resolution,
             orientation: live.orientation,
             scale: live.scale,
+            serial: live.serial ?? null,
           });
           const observation = await api.createVisionObservation({
             conversation_id: conversationId,
             frame_base64: frame.png_base64,
-            source_label: "emulator",
+            // Честная провенанс кадра: симулятор и реальное устройство различаются в аудите.
+            source_label: frameSource.kind === "android-adb" ? "android-adb" : "emulator",
             captured_at: new Date().toISOString(),
             analyze: true,
           });

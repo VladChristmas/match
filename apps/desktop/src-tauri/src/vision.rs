@@ -6,7 +6,7 @@
 
 use serde::Serialize;
 
-const MAX_FRAME_WIDTH: u32 = 1280;
+pub(crate) const MAX_FRAME_WIDTH: u32 = 1280;
 const FRAME_TIMEOUT_MS: u32 = 2000;
 
 #[derive(Debug, Clone, Serialize)]
@@ -22,7 +22,7 @@ pub struct CapturedFrame {
     pub png_base64: String,
 }
 
-fn base64_encode(data: &[u8]) -> String {
+pub(crate) fn base64_encode(data: &[u8]) -> String {
     const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {
@@ -46,7 +46,7 @@ fn base64_encode(data: &[u8]) -> String {
     out
 }
 
-fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
+pub(crate) fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> {
     let mut buffer = Vec::new();
     {
         let mut encoder = png::Encoder::new(&mut buffer, width, height);
