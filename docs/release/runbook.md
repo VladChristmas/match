@@ -150,12 +150,18 @@ services\api\.venv\Scripts\python.exe scripts\emulator_lab_live.py
 - Android Platform Tools в PATH (команда `adb` должна запускаться из PowerShell);
 - телефон/эмулятор с включённой «Отладкой по USB» (для эмулятора достаточно
   запущенного образа — он появляется в списке автоматически);
-- первое подключение требует подтверждения RSA-отпечатка на самом устройстве.
+- первое подключение требует подтверждения RSA-отпечатка на самом устройстве;
+- **Xiaomi/Redmi (MIUI)**: для жестов (`adb shell input tap/swipe/keyevent`)
+  дополнительно нужна «Отладка по USB (Настройки безопасности)» (Для разработчиков;
+  требует Mi-аккаунт). Без неё screencap и кадры работают, а инъекция ввода падает
+  с `SecurityException: Injecting to another application requires INJECT_EVENTS
+  permission` (adb exit 1) — вкладка показывает «Жест: adb завершился с ошибкой».
 
 Проверка без GUI:
 ```powershell
 adb devices -l        # устройство в состоянии device
 adb exec-out screencap -p | Measure-Object -Length   # кадр отдаётся
+adb shell input tap 100 200   # MIUI: exit 1 без «Отладки по USB (Настройки безопасности)»
 ```
 Ограничения честно: adb в PATH — требование внешней среды (не приложения);
 если adb нет или устройство офлайн — вкладка показывает ошибку, сценарий
