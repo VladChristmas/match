@@ -35,6 +35,7 @@
 - [x] Прогон инструкции (`docs/release/runbook.md`) на чистом окружении: выполнен 2026-10-26 (коммит `a278de0`) — compose `down -v` → чистый стек db+api, alembic `0015`/21 таблица, `/health`+`/health/ready`, прод-локдаун (401), live-smoke §10, loadtest 500/500 @ 129.8 req/s, backup→restore OK. Подробности — `D:\AI\Agent-Workspace\VERIFY-PLAN.md` (фаза 2).
 
 ## Качество
-- [x] `ruff check .` — чисто; `pytest -q` — зелёный (164 теста).
-- [x] `pnpm build` (клиент) — зелёный (tsc + vite); `cargo clippy -D warnings` и `cargo test` (16) — зелёные.
+- [x] `ruff check .` — чисто; `pytest -q` — зелёный (187 тестов; обновлено 2026-11-02).
+- [x] `pnpm build` (клиент) — зелёный (tsc + vite), 38 node-тестов; `cargo clippy -D warnings` и `cargo test` (22) — зелёные.
+- [x] Живой прогон лаборатории `scripts/emulator_lab_live.py` на dev-стеке — 31/31 (2026-11-02); `scripts/pg_smoke.py` — OK.
 - [x] CI зелёный (2026-10-25, прогон `7972f16`: backend, desktop-web, desktop-tauri, scaffold, database с alembic up/down и pg_smoke — все success).

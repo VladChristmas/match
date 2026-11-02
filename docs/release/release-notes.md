@@ -57,6 +57,9 @@
 docker compose -f infra\docker-compose.yml up -d db
 $env:MATCH_DATABASE_URL="postgresql+asyncpg://match:match@localhost:5433/match"
 python scripts\pg_smoke.py             # 6 сигналов dynamics + risk + compare на боевой PG
+# живой прогон лаборатории «Эмулятор и тесты» (API уже поднят):
+$env:MATCH_BASE_URL="http://127.0.0.1:8000"; $env:MATCH_TOKEN="emulator-lab"
+python scripts\emulator_lab_live.py    # 31/31 проверок
 ```
 
 CI: `.github/workflows/ci.yml` — backend, desktop-web, desktop-rust,
@@ -96,3 +99,23 @@ scaffold-check, database (alembic up/down + pg_smoke).
   прод-lockдаун (401), live-smoke ключевых сценариев, loadtest 500/500.
 - Vision «в поле» на реальном экране знакомств — процедура для оператора:
   `docs/release/vision-field-test.md` (требуется человек с экраном площадки).
+
+## Пострелизная пересборка (2026-11-02)
+
+Публикация `v0.1.0` (тег `6769a98`) и её ассеты не менялись. Инсталляторы
+пересобраны из текущего `main` (HEAD `6783409`; код приложения — `64cf811`,
+поверх только docs и фикс скрипта) на MSVC 14.43 / Windows SDK 10.0.22621
+через `pnpm tauri build`:
+
+| Артефакт | Размер | SHA-256 |
+|---|---|---|
+| `nsis\MATCH_0.1.0_x64-setup.exe` | 2 361 895 Б (2.25 МиБ) | `4EEDFA9181D245C6AA553C3A15F976002A8203C330A9111715A343B9A59089CC` |
+| `msi\MATCH_0.1.0_x64_en-US.msi` | 3 264 512 Б (3.11 МиБ) | `05E0473226689317FEBDFD3BF9C63EDAF27B44AEB3C80ADA3BFB8E783D410092` |
+
+Проверки на этом дереве: pytest 187 passed, `pnpm build` + 38 node-тестов;
+живой прогон лаборатории — 31/31 за 21.1 с (PostgreSQL 5433, uvicorn, LLM `echo`);
+`scripts/pg_smoke.py` — OK; alembic `0015`, 21 таблица.
+По ходу прогона исправлен дефект `emulator_lab_live.py`: печать «→»/«×» падала
+с `UnicodeEncodeError` в консоли cp1251 — заменено на ASCII (коммит `6783409`).
+Установка этих артефактов поверх предыдущей версии не повторялась (последняя
+живая проверка установки — сборка `68d6377`, §22/§23 acceptance-checklist).
