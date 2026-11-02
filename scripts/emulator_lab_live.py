@@ -66,7 +66,7 @@ def frame(conv: str, label: str, captured_at: str) -> tuple[int, dict | list | N
     """Наблюдение с кадром: с устройства adb (Фаза 2) или сгенерированный PNG."""
     if ADB_SERIAL is not None:
         frame_b64, width, height = adb_screencap(ADB_SERIAL)
-        print(f"  кадр adb: {ADB_SERIAL or '(default)'} → {width}×{height}")
+        print(f"  кадр adb: {ADB_SERIAL or '(default)'} -> {width}x{height}")
         if width > 1280:
             raise SystemExit(
                 f"кадр шире 1280 px ({width}) — decode_png_frame отклонит; уменьшите разрешение экрана устройства"
@@ -191,7 +191,7 @@ def scenario_new_match() -> None:
     status, data = frame(conv, name, "2026-10-30T12:00:00Z")
     pending = (data or {}).get("analysis_pending")
     check(f"{name}: observation", "201", status == 201, str(status))
-    check(f"{name}: analysis_pending", "провайдер недоступен → pending (ожидаемо)", pending is True, str(pending))
+    check(f"{name}: analysis_pending", "провайдер недоступен -> pending (ожидаемо)", pending is True, str(pending))
     check(f"{name}: import", "201", import_message(conv, "Привет! Как дела?") == 201)
     eval_status, mode = evaluate(conv, "Привет! Как дела?")
     check(f"{name}: evaluate mode", "execute/verify/escalate", eval_status == 200 and mode in {"execute", "verify", "escalate"}, mode)
