@@ -156,6 +156,7 @@ services\api\.venv\Scripts\python.exe scripts\emulator_lab_live.py
   требует Mi-аккаунт). Без неё screencap и кадры работают, а инъекция ввода падает
   с `SecurityException: Injecting to another application requires INJECT_EVENTS
   permission` (adb exit 1) — вкладка показывает «Жест: adb завершился с ошибкой».
+  После включения жесты работают (проверено тап по превью и «Назад», 2026-11-02).
 
 Проверка без GUI:
 ```powershell
